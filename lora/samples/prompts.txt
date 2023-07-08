@@ -1,0 +1,6 @@
+# prompts we used when editing the given samples:
+
+cat_dog: a photo of a cat and a dog
+oilpaint1: an oil painting of a mountain besides a lake
+oilpaint2: an oil painting of a mountain and forest
+sculpture: a photo of a sculpture
