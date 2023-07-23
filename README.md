@@ -18,8 +18,8 @@
   </div>
   <br>
   <p align="center">
-    <a href="https://arxiv.org/abs/2306.14435">[arXiv paper]</a>
-    <a href="https://yujun-shi.github.io/projects/dragdiffusion.html">[Project Page]</a>
+    <a href="https://arxiv.org/abs/2306.14435"><img alt='arXiv' src="https://img.shields.io/badge/arXiv-2306.14435-b31b1b.svg"></a>
+    <a href="https://yujun-shi.github.io/projects/dragdiffusion.html"><img alt='page' src="https://img.shields.io/badge/Project-Website-orange"></a>
     <a href="https://twitter.com/YujunPeiyangShi"><img alt='Twitter' src="https://img.shields.io/twitter/follow/YujunPeiyangShi?label=%40YujunPeiyangShi"></a>
   </p>
   <br>
@@ -28,9 +28,17 @@
 ## Disclaimer
 This is a research project, NOT a commercial product.
 
+## News and Update
+* [July 18th] v0.0.1 Release.
+  * Integrate LoRA training into the User Interface. **No need to use training script and everything can be conveniently done in UI!**
+  * Optimize User Interface layout.
+  * Enable using better VAE for eyes and faces (See [this](https://stable-diffusion-art.com/how-to-use-vae/))
+* [July 8th] v0.0.0 Release.
+  * Implement Basic function of DragDiffusion
+
 ## Installation
 
-It is recommended to run our code on a Nvidia GPU with a linux system. We have not yet tested on other configurations.
+It is recommended to run our code on a Nvidia GPU with a linux system. We have not yet tested on other configurations. Currently, it requires around 14 GB GPU memory to run our method. We will continue to optimize memory efficiency
 
 To install the required libraries, simply run the following command:
 ```
@@ -39,52 +47,58 @@ conda activate dragdiff
 ```
 
 ## Run DragDiffusion
-Before running DragDiffusion, you might need to set up "accelerate" with the following command:
-```
-accelerate config
-```
-In all our experiments, we used the following configuration for "accelerate":
-<p align="center">
-    <img src="./release-doc/asset/accelerate_config.jpg"></img>
-</p>
-
-#### Step 1: train a LoRA
-1) To train a LoRA on our input image, we first put the image under a folder. Note that this folder should **ONLY** contain this one image.
-2) Then, we set "SAMPLE\_DIR" and "OUTPUT\_DIR" in the script "lora/train\_lora.sh" to be proper values. "SAMPLE\_DIR" should be the directory containing our input image; "OUTPUT\_DIR" should be the directory where we want to save the trained LoRA.
-3) Also, we need to set the option "--instance\_prompt" in the script "lora/train\_lora.sh" to be a proper prompt. Note that this prompt does NOT have to be a complicated one. Examples of prompts (i.e., prompts used in our Demo video) are given in "lora/samples/prompts.txt".
-4) Finally, After the "lora/train\_lora.sh" file has been configured properly, run the following command to train a LoRA:
-```
-bash lora/train_lora.sh
-```
-
-#### Step 2: do "drag" editing
-After training the LoRA, we can now run the following command to start the gradio user interface:
+To start with, in command line, run the following to start the gradio user interface:
 ```
 python3 drag_ui_real.py
 ```
 
-Please refer to our [Demo video](https://yujun-shi.github.io/projects/dragdiffusion.html) to see how to do the "drag" editing.
+You may check our [GIF above](https://github.com/Yujun-Shi/DragDiffusion/blob/main/release-doc/asset/github_video.gif) that demonstrate the usage of UI in a step-by-step manner.
 
-The editing process is consist of the following steps:
+Basically, it consists of the following steps:
+
+#### Step 1: train a LoRA
 1) Drop our input image into the left-most box.
-2) Draw a mask in the left-most box to specify the editable areas.
-3) Click handle and target points in the middle box. Also, you may reset all points by clicking "Undo point".
-4) Input "prompt" and "lora path". "lora path" is the **directory** storing our trained LoRA; "prompt" should be the same prompt we used to train our LoRA.
-5) Finally, click the "Run" button to run our algorithm. Edited results will be displayed in the right-most box.
+2) Input a prompt describing the image in the "prompt" field
+3) Click the "Train LoRA" button to train a LoRA given the input image
 
-Explanation for parameters in the user interface:
+#### Step 2: do "drag" editing
+1) Draw a mask in the left-most box to specify the editable areas.
+2) Click handle and target points in the middle box. Also, you may reset all points by clicking "Undo point".
+3) Click the "Run" button to run our algorithm. Edited results will be displayed in the right-most box.
+
+
+## Explanation for parameters in the user interface:
+#### General Parameters
+|Parameter|Explanation|
+|-----|------|
+|prompt|The prompt describing the user input image (This will be used to train the LoRA and conduct "drag" editing).|
+|lora_path|The directory where the trained LoRA will be saved.|
+
+
+#### Algorithm Parameters
+These parameters are collapsed by default as we normally do not have to tune them. Here are the explanations:
+* Base Model Config
 
 |Parameter|Explanation|
 |-----|------|
-|prompt|The prompt describing the user input image (This needs to be the same as the prompt used to train LoRA).|
-|lora_path|The path to the trained LoRA|
-|n_pix_step|Maximum number of steps of motion supervision. Increase this value if handle points have not been "dragged" to desired position.|
+|Diffusion Model Path|The path to the diffusion models. By default we are using "runwayml/stable-diffusion-v1-5". We will add support for more models in the future.|
+|VAE Choice|The Choice of VAE. Now there are two choices, one is "default", which will use the original VAE. Another choice is "stabilityai/sd-vae-ft-mse", which can improve results on images with human eyes and faces (see [explanation](https://stable-diffusion-art.com/how-to-use-vae/))|
+
+* Drag Parameters
+
+|Parameter|Explanation|
+|-----|------|
+|n_pix_step|Maximum number of steps of motion supervision. **Increase this if handle points have not been "dragged" to desired position.**|
 |lam|The regularization coefficient controlling unmasked region stays unchanged. Increase this value if the unmasked region has changed more than what was desired (do not have to tune in most cases).|
 |n_actual_inference_step|Number of DDIM inversion steps performed (do not have to tune in most cases).|
 
+* LoRA Parameters
 
-## Acknowledgement
-This work is inspired by the amazing [DragGAN](https://vcai.mpi-inf.mpg.de/projects/DragGAN/). The lora training code is modified from an [example](https://github.com/huggingface/diffusers/blob/v0.17.1/examples/dreambooth/train_dreambooth_lora.py) of diffusers. Image samples are collected from [unsplash](https://unsplash.com/), [pexels](https://www.pexels.com/zh-cn/), [pixabay](https://pixabay.com/). Finally, a huge shout-out to all the amazing open source diffusion models and libraries.
+|Parameter|Explanation|
+|-----|------|
+|LoRA training steps|Number of LoRA training steps (do not have to tune in most cases).|
+|LoRA learning rate|Learning rate of LoRA (do not have to tune in most cases)|
+|LoRA rank|Rank of the LoRA (do not have to tune in most cases).|
 
 
 ## License
@@ -102,12 +116,25 @@ Code related to the DragDiffusion algorithm is under Apache 2.0 license.
 ```
 
 ## TODO
-- [ ] Upload trained LoRAs of our examples
-- [ ] Support arbitrary size input
-- [ ] Integrate the lora training function into the user interface.
-- [ ] Try to use another user interface that can respond faster.
-
+- [x] Upload trained LoRAs of our examples
+- [x] Integrate the lora training function into the user interface.
+- [ ] Support using more diffusion models
+- [ ] Support using LoRA downloaded online
 
 ## Contact
 For any questions on this project, please contact [Yujun](https://yujun-shi.github.io/) (shi.yujun@u.nus.edu)
+
+## Acknowledgement
+This work is inspired by the amazing [DragGAN](https://vcai.mpi-inf.mpg.de/projects/DragGAN/). The lora training code is modified from an [example](https://github.com/huggingface/diffusers/blob/v0.17.1/examples/dreambooth/train_dreambooth_lora.py) of diffusers. Image samples are collected from [unsplash](https://unsplash.com/), [pexels](https://www.pexels.com/zh-cn/), [pixabay](https://pixabay.com/). Finally, a huge shout-out to all the amazing open source diffusion models and libraries.
+
+## Related Links
+* [Drag Your GAN: Interactive Point-based Manipulation on the Generative Image Manifold](https://vcai.mpi-inf.mpg.de/projects/DragGAN/)
+* [Emergent Correspondence from Image Diffusion](https://diffusionfeatures.github.io/)
+* [DragonDiffusion: Enabling Drag-style Manipulation on Diffusion Models](https://mc-e.github.io/project/DragonDiffusion/)
+* [FreeDrag: Point Tracking is Not You Need for Interactive Point-based Image Editing](https://lin-chen.site/projects/freedrag/)
+
+
+## Common Issues and Solutions
+1) For users struggling in loading models from huggingface due to internet constraint, please 1) follow this [links](https://zhuanlan.zhihu.com/p/475260268) and download the model into the directory "local\_pretrained\_models"; 2) Run "drag\_ui\_real.py" and select the directory to your pretrained model in "Algorithm Parameters -> Base Model Config -> Diffusion Model Path".
+
 

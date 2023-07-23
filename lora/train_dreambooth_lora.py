@@ -1124,11 +1124,10 @@ def main(args):
 
             with accelerator.accumulate(unet):
                 pixel_values = batch["pixel_values"].to(dtype=weight_dtype)
-
                 if vae is not None:
                     # Convert images to latent space
-                    model_input = vae.encode(pixel_values).latent_dist.sample()
-                    model_input = model_input * vae.config.scaling_factor
+                    model_input = vae.encode(pixel_values).latent_dist
+                    model_input = model_input.sample() * vae.config.scaling_factor
                 else:
                     model_input = pixel_values
 

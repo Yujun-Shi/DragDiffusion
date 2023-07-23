@@ -470,7 +470,6 @@ class DragPipeline(StableDiffusionPipeline):
         print("input text embeddings :", text_embeddings.shape)
         # define initial latents
         latents = self.image2latent(image)
-        start_latents = latents
 
         # unconditional embedding for classifier free guidance
         if guidance_scale > 1.:

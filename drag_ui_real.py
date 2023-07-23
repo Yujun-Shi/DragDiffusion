@@ -25,34 +25,24 @@ from einops import rearrange
 from types import SimpleNamespace
 
 import datetime
-import copy
+import PIL
 from PIL import Image
+from PIL.ImageOps import exif_transpose
 import torch
 import torch.nn.functional as F
 
-from diffusers import DDIMScheduler
+from diffusers import DDIMScheduler, AutoencoderKL
 from drag_pipeline import DragPipeline
 
 from torchvision.utils import save_image
 from pytorch_lightning import seed_everything
 
 from drag_utils import drag_diffusion_update
+from lora_utils import train_lora
 
-# initialize the stable diffusion model
-diffusion_model_path = "runwayml/stable-diffusion-v1-5"
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
-                          beta_schedule="scaled_linear", clip_sample=False,
-                          set_alpha_to_one=False, steps_offset=1)
-model = DragPipeline.from_pretrained(diffusion_model_path, scheduler=scheduler).to(device)
-# call this function to override unet forward function,
-# so that intermediate features are returned after forward
-model.modify_unet_forward()
-
-def preprocess_image(image, device, resolution=512):
+def preprocess_image(image, device):
     image = torch.from_numpy(image).float() / 127.5 - 1 # [-1, 1]
     image = rearrange(image, "h w c -> 1 c h w")
-    image = F.interpolate(image, (resolution, resolution))
     image = image.to(device)
     return image
 
@@ -72,65 +62,84 @@ def mask_image(image, mask, color=[255,0,0], alpha=0.5):
                         cv2.CHAIN_APPROX_SIMPLE)[-2:]
     return out
 
+def train_lora_interface(original_image,
+                         prompt,
+                         model_path,
+                         vae_path,
+                         lora_path,
+                         lora_step,
+                         lora_lr,
+                         lora_rank,
+                         progress=gr.Progress()):
+    train_lora(
+        original_image,
+        prompt,
+        model_path,
+        vae_path,
+        lora_path,
+        lora_step,
+        lora_lr,
+        lora_rank,
+        progress)
+    return "Training LoRA Done!"
+
 def inference(source_image,
               image_with_clicks,
               mask,
               prompt,
               points,
-              # n_inference_step,
               n_actual_inference_step,
-              # guidance_scale,
-              # unet_feature_idx,
-              # sup_res,
-              # r_m,
-              # r_p,
               lam,
-              # lr,
               n_pix_step,
+              model_path,
+              vae_path,
               lora_path,
               save_dir="./results"
     ):
 
+    # initialize model
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
+                          beta_schedule="scaled_linear", clip_sample=False,
+                          set_alpha_to_one=False, steps_offset=1)
+    model = DragPipeline.from_pretrained(model_path, scheduler=scheduler).to(device)
+    # call this function to override unet forward function,
+    # so that intermediate features are returned after forward
+    model.modify_unet_forward()
+
+    # set vae
+    if vae_path != "default":
+        model.vae = AutoencoderKL.from_pretrained(
+            vae_path
+        ).to(model.vae.device, model.vae.dtype)
+
+    # initialize parameters
     seed = 42 # random seed used by a lot of people for unknown reason
     seed_everything(seed)
 
     args = SimpleNamespace()
     args.prompt = prompt
     args.points = points
-    # args.n_inference_step = n_inference_step
     args.n_inference_step = 50
     args.n_actual_inference_step = n_actual_inference_step
-    
-    # args.guidance_scale = guidance_scale
     args.guidance_scale = 1.0
 
-    # unet_feature_idx = unet_feature_idx.split(" ")
-    # unet_feature_idx = [int(k) for k in unet_feature_idx]
-    # args.unet_feature_idx = unet_feature_idx
     args.unet_feature_idx = [2]
 
-    # args.sup_res = sup_res
     args.sup_res = 256
 
-    # args.r_m = r_m
-    # args.r_p = r_p
     args.r_m = 1
     args.r_p = 3
     args.lam = lam
 
-    # args.lr = lr
     args.lr = 0.01
 
     args.n_pix_step = n_pix_step
     print(args)
     full_h, full_w = source_image.shape[:2]
 
-    if diffusion_model_path == 'stabilityai/stable-diffusion-2-1':
-        source_image = preprocess_image(source_image, device, resolution=768)
-        image_with_clicks = preprocess_image(image_with_clicks, device, resolution=768)
-    else:
-        source_image = preprocess_image(source_image, device, resolution=512)
-        image_with_clicks = preprocess_image(image_with_clicks, device, resolution=512)
+    source_image = preprocess_image(source_image, device)
+    image_with_clicks = preprocess_image(image_with_clicks, device)
 
     # set lora
     if lora_path == "":
@@ -202,9 +211,6 @@ def inference(source_image,
     out_image = (out_image * 255).astype(np.uint8)
     return out_image
 
-# order: target point, handle point
-# colors = [(0, 0, 255), (255, 0, 0)]
-
 with gr.Blocks() as demo:
     with gr.Row():
         gr.Markdown("""
@@ -220,45 +226,62 @@ with gr.Blocks() as demo:
             length = 480
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 25px">Draw Mask</p>""")
-                canvas = gr.Image(type="numpy", tool="sketch", label="Draw Mask", show_label=True).style(height=length, width=length) # for inpainting
-                gr.Markdown(
-                    """
-                    Instructions: 1. Draw a mask; 2. Click points;
-
-                    3. Input prompt and LoRA path; 4. Run results.
-                    """
-                )
+                canvas = gr.Image(type="numpy", tool="sketch", label="Draw Mask", show_label=True, height=length, width=length) # for mask painting
+                train_lora_button = gr.Button("Train LoRA")
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 25px">Click Points</p>""")
-                input_image = gr.Image(type="numpy", label="Click Points", show_label=True).style(height=length, width=length) # for points clicking
-                undo_button = gr.Button('Undo point')
+                input_image = gr.Image(type="numpy", label="Click Points", show_label=True, height=length, width=length) # for points clicking
+                undo_button = gr.Button("Undo point")
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 25px">Editing Results</p>""")
-                output_image = gr.Image(type="numpy", label="Editing Results", show_label=True).style(height=length, width=length)
+                output_image = gr.Image(type="numpy", label="Editing Results", show_label=True, height=length, width=length)
                 run_button = gr.Button("Run")
 
-        # Parameters
-        with gr.Accordion(label='Parameters', open=True):
-            with gr.Row():
-                prompt = gr.Textbox(label="prompt")
-                lora_path = gr.Textbox(value="", label="lora path")
-                n_pix_step = gr.Number(value=40, label="n_pix_step", precision=0)
-                lam = gr.Number(value=0.1, label="lam")
-                n_actual_inference_step = gr.Number(value=40, label="n_actual_inference_step", precision=0)
-                # n_inference_step = gr.Number(value=50, label="n_inference_step", precision=0)
-                # guidance_scale = gr.Number(value=1.0, label="guidance_scale")
-                # unet_feature_idx = gr.Textbox(value="2", label="unet_feature_idx")
-                # sup_res = gr.Number(value=256, label="sup_res", precision=0)
-                # lr = gr.Number(value=1e-2, label="lr")
-                # r_m = gr.Number(value=1, label="r_m", precision=0)
-                # r_p = gr.Number(value=3, label="r_p", precision=0)
+        # general parameters
+        with gr.Row():
+            prompt = gr.Textbox(label="Prompt")
+            lora_path = gr.Textbox(value="./lora_tmp", label="LoRA path")
+            lora_status_bar = gr.Textbox(label="display LoRA training status")
+
+        # algorithm specific parameters
+        with gr.Accordion(label="Algorithm Parameters", open=False):
+            with gr.Tab("Base Model Config"):
+                with gr.Row():
+                    local_models_dir = 'local_pretrained_models'
+                    local_models_choice = \
+                        [os.path.join(local_models_dir,d) for d in os.listdir(local_models_dir) if os.path.isdir(os.path.join(local_models_dir,d))]
+                    model_path = gr.Dropdown(value="runwayml/stable-diffusion-v1-5",
+                        label="Diffusion Model Path",
+                        choices=["runwayml/stable-diffusion-v1-5"] + local_models_choice
+                    )
+                    vae_path = gr.Dropdown(value="default",
+                        label="VAE choice",
+                        choices=["default",
+                        "stabilityai/sd-vae-ft-mse"] + local_models_choice
+                    )
+
+            with gr.Tab("Drag Parameters"):
+                with gr.Row():
+                    n_pix_step = gr.Number(value=40, label="n_pix_step", precision=0)
+                    lam = gr.Number(value=0.1, label="lam")
+                    n_actual_inference_step = gr.Number(value=40, label="n_actual_inference_step", precision=0)
+
+            with gr.Tab("LoRA Parameters"):
+                with gr.Row():
+                    lora_step = gr.Number(value=200, label="LoRA training steps", precision=0)
+                    lora_lr = gr.Number(value=0.0002, label="LoRA learning rate")
+                    lora_rank = gr.Number(value=16, label="LoRA rank", precision=0)
 
     # once user upload an image, the original image is stored in `original_image`
     # the same image is displayed in `input_image` for point clicking purpose
     def store_img(img):
         image, mask = img["image"], np.float32(img["mask"][:, :, 0]) / 255.
+        image = Image.fromarray(image)
+        image = exif_transpose(image)
         # resize the input to 512x512
-        image = cv2.resize(image, (512, 512), interpolation=cv2.INTER_LINEAR)
+        # image = cv2.resize(image, (512, 512), interpolation=cv2.INTER_LINEAR)
+        image = image.resize((512,512), PIL.Image.BILINEAR)
+        image = np.array(image)
         mask  = cv2.resize(mask, (512, 512), interpolation=cv2.INTER_NEAREST)
         if mask.sum() > 0:
             mask = np.uint8(mask > 0)
@@ -307,6 +330,19 @@ with gr.Blocks() as demo:
             masked_img = original_image.copy()
         return masked_img, []
 
+    train_lora_button.click(
+        train_lora_interface,
+        [original_image,
+        prompt,
+        model_path,
+        vae_path,
+        lora_path,
+        lora_step,
+        lora_lr,
+        lora_rank],
+        [lora_status_bar]
+    )
+
     undo_button.click(
         undo_points,
         [original_image, mask],
@@ -320,19 +356,14 @@ with gr.Blocks() as demo:
         mask,
         prompt,
         selected_points,
-        # n_inference_step,
         n_actual_inference_step,
-        # guidance_scale,
-        # unet_feature_idx,
-        # sup_res,
-        # r_m,
-        # r_p,
         lam,
-        # lr,
         n_pix_step,
+        model_path,
+        vae_path,
         lora_path,
         ],
         [output_image]
     )
 
-demo.queue().launch(share=True, debug=True, enable_queue=True)
+demo.queue().launch(share=True, debug=True)
