@@ -29,11 +29,11 @@
 This is a research project, NOT a commercial product.
 
 ## News and Update
-* [July 18th] v0.0.1 Release.
+* **[July 18th] v0.0.1 Release.**
   * Integrate LoRA training into the User Interface. **No need to use training script and everything can be conveniently done in UI!**
   * Optimize User Interface layout.
   * Enable using better VAE for eyes and faces (See [this](https://stable-diffusion-art.com/how-to-use-vae/))
-* [July 8th] v0.0.0 Release.
+* **[July 8th] v0.0.0 Release.**
   * Implement Basic function of DragDiffusion
 
 ## Installation
