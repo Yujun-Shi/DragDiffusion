@@ -17,6 +17,11 @@
     <img src="./release-doc/asset/github_video.gif", width="700">
   </div>
   <br>
+  <div align="center">
+    <img src="./release-doc/asset/counterfeit-1.png", width="700">
+    <img src="./release-doc/asset/counterfeit-2.png", width="700">
+    <img src="./release-doc/asset/majix_realistic.png", width="700">
+  </div>
   <p align="center">
     <a href="https://arxiv.org/abs/2306.14435"><img alt='arXiv' src="https://img.shields.io/badge/arXiv-2306.14435-b31b1b.svg"></a>
     <a href="https://yujun-shi.github.io/projects/dragdiffusion.html"><img alt='page' src="https://img.shields.io/badge/Project-Website-orange"></a>
@@ -54,7 +59,7 @@ conda activate dragdiff
 ## Run DragDiffusion
 To start with, in command line, run the following to start the gradio user interface:
 ```
-python3 drag_ui_real.py
+python3 drag_ui.py
 ```
 
 You may check our [GIF above](https://github.com/Yujun-Shi/DragDiffusion/blob/main/release-doc/asset/github_video.gif) that demonstrate the usage of UI in a step-by-step manner.
@@ -119,12 +124,6 @@ Code related to the DragDiffusion algorithm is under Apache 2.0 license.
   year={2023}
 }
 ```
-
-## TODO
-- [x] Upload trained LoRAs of our examples
-- [x] Integrate the lora training function into the user interface.
-- [ ] Support using more diffusion models
-- [ ] Support using LoRA downloaded online
 
 ## Contact
 For any questions on this project, please contact [Yujun](https://yujun-shi.github.io/) (shi.yujun@u.nus.edu)
