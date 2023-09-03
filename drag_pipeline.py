@@ -16,22 +16,15 @@
 # limitations under the License. 
 # *************************************************************************
 
-import os
 import torch
-import cv2
 import numpy as np
 
 import torch.nn.functional as F
 from tqdm import tqdm
 from PIL import Image
-from torchvision.utils import save_image
-from torchvision.io import read_image
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from diffusers import StableDiffusionPipeline
-
-from pytorch_lightning import seed_everything
-
 
 # override unet forward
 # The only difference from diffusers:
@@ -174,7 +167,8 @@ def override_forward(self):
         # 5. up
         # only difference from diffusers:
         # save the intermediate features of unet upsample blocks
-        all_intermediate_features = []
+        # the 0-th element is the mid-block output
+        all_intermediate_features = [sample]
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
 
@@ -226,7 +220,7 @@ class DragPipeline(StableDiffusionPipeline):
     def modify_unet_forward(self):
         self.unet.forward = override_forward(self.unet)
 
-    def next_step(
+    def inv_step(
         self,
         model_output: torch.FloatTensor,
         timestep: int,
@@ -254,8 +248,6 @@ class DragPipeline(StableDiffusionPipeline):
         model_output: torch.FloatTensor,
         timestep: int,
         x: torch.FloatTensor,
-        eta: float=0.0,
-        verbose=False,
     ):
         """
         predict the sample of the next step in the denoise process.
@@ -314,7 +306,7 @@ class DragPipeline(StableDiffusionPipeline):
 
     # get all intermediate features and then do bilinear interpolation
     # return features in the layer_idx list
-    def forward_unet_features(self, z, t, encoder_hidden_states, layer_idx=[0], interp_res=256):
+    def forward_unet_features(self, z, t, encoder_hidden_states, layer_idx=[0], interp_res_h=256, interp_res_w=256):
         unet_output, all_intermediate_features = self.unet(
             z,
             t,
@@ -325,7 +317,7 @@ class DragPipeline(StableDiffusionPipeline):
         all_return_features = []
         for idx in layer_idx:
             feat = all_intermediate_features[idx]
-            feat = F.interpolate(feat, (interp_res, interp_res), mode='bilinear')
+            feat = F.interpolate(feat, (interp_res_h, interp_res_w), mode='bilinear')
             all_return_features.append(feat)
         return_features = torch.cat(all_return_features, dim=1)
         return unet_output, return_features
@@ -341,11 +333,9 @@ class DragPipeline(StableDiffusionPipeline):
         num_inference_steps=50,
         num_actual_inference_steps=None,
         guidance_scale=7.5,
-        eta=0.0,
         latents=None,
         unconditioning=None,
         neg_prompt=None,
-        ref_intermediate_latents=None,
         return_intermediates=False,
         **kwds):
         DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -370,17 +360,10 @@ class DragPipeline(StableDiffusionPipeline):
             text_embeddings = prompt_embeds
         print("input text embeddings :", text_embeddings.shape)
 
-        if kwds.get("dir"):
-            dir = text_embeddings[-2] - text_embeddings[-1]
-            u, s, v = torch.pca_lowrank(dir.transpose(-1, -2), q=1, center=True)
-            text_embeddings[-1] = text_embeddings[-1] + kwds.get("dir") * v
-            print(u.shape)
-            print(v.shape)
-
         # define initial latents if not predefined
         if latents is None:
             latents_shape = (batch_size, self.unet.in_channels, height//8, width//8)
-            latents = torch.randn(latents_shape, device=DEVICE)
+            latents = torch.randn(latents_shape, device=DEVICE, dtype=self.vae.dtype)
 
         # unconditional embedding for classifier free guidance
         if guidance_scale > 1.:
@@ -394,7 +377,6 @@ class DragPipeline(StableDiffusionPipeline):
                 max_length=77,
                 return_tensors="pt"
             )
-            # unconditional_input.input_ids = unconditional_input.input_ids[:, 1:]
             unconditional_embeddings = self.text_encoder(unconditional_input.input_ids.to(DEVICE))[0]
             text_embeddings = torch.cat([unconditional_embeddings, text_embeddings], dim=0)
 
@@ -403,16 +385,9 @@ class DragPipeline(StableDiffusionPipeline):
         self.scheduler.set_timesteps(num_inference_steps)
         # print("Valid timesteps: ", reversed(self.scheduler.timesteps))
         latents_list = [latents]
-        pred_x0_list = [latents]
         for i, t in enumerate(tqdm(self.scheduler.timesteps, desc="DDIM Sampler")):
             if num_actual_inference_steps is not None and i < num_inference_steps - num_actual_inference_steps:
                 continue
-
-            if ref_intermediate_latents is not None:
-                # note that the batch_size >= 2
-                latents_ref = ref_intermediate_latents[-1 - i]
-                _, latents_cur = latents.chunk(2)
-                latents = torch.cat([latents_ref, latents_cur])
 
             if guidance_scale > 1.:
                 model_inputs = torch.cat([latents] * 2)
@@ -423,17 +398,19 @@ class DragPipeline(StableDiffusionPipeline):
                 text_embeddings = torch.cat([unconditioning[i].expand(*text_embeddings.shape), text_embeddings]) 
             # predict the noise
             noise_pred = self.unet(model_inputs, t, encoder_hidden_states=text_embeddings)
-            if guidance_scale > 1.:
+            if guidance_scale > 1.0:
                 noise_pred_uncon, noise_pred_con = noise_pred.chunk(2, dim=0)
                 noise_pred = noise_pred_uncon + guidance_scale * (noise_pred_con - noise_pred_uncon)
             # compute the previous noise sample x_t -> x_t-1
-            latents, pred_x0 = self.step(noise_pred, t, latents)
+            # YUJUN: right now, the only difference between step here and step in scheduler
+            # is that scheduler version would clamp pred_x0 between [-1,1]
+            # don't know if that's gonna have huge impact
+            latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
             latents_list.append(latents)
-            pred_x0_list.append(pred_x0)
 
         image = self.latent2image(latents, return_type="pt")
         if return_intermediates:
-            return image, pred_x0_list, latents_list
+            return image, latents_list
         return image
 
     @torch.no_grad()
@@ -505,7 +482,7 @@ class DragPipeline(StableDiffusionPipeline):
                 noise_pred_uncon, noise_pred_con = noise_pred.chunk(2, dim=0)
                 noise_pred = noise_pred_uncon + guidance_scale * (noise_pred_con - noise_pred_uncon)
             # compute the previous noise sample x_t-1 -> x_t
-            latents, pred_x0 = self.next_step(noise_pred, t, latents)
+            latents, pred_x0 = self.inv_step(noise_pred, t, latents)
             latents_list.append(latents)
             pred_x0_list.append(pred_x0)
 

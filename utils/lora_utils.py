@@ -1,5 +1,9 @@
-from timeit import default_timer as timer
-from datetime import timedelta
+# *************************************************************************
+# This file may have been modified by Bytedance Inc. (“Bytedance Inc.'s Mo-
+# difications”). All Bytedance Inc.'s Modifications are Copyright (2023) B-
+# ytedance Inc..  
+# *************************************************************************
+
 from PIL import Image
 import os
 import numpy as np
@@ -7,13 +11,9 @@ from einops import rearrange
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
-import transformers
 from accelerate import Accelerator
 from accelerate.utils import set_seed
-from packaging import version
 from PIL import Image
-from tqdm.auto import tqdm
-import gradio as gr
 
 from transformers import AutoTokenizer, PretrainedConfig
 

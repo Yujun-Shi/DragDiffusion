@@ -29,11 +29,16 @@
 This is a research project, NOT a commercial product.
 
 ## News and Update
-* **[July 18th] v0.0.1 Release.**
+* [Sept 3rd] v0.1.0 Release.
+  * Enable **Dragging Diffusion-Generated Images.**
+  * Introducing a new guidance mechanism that **greatly improve quality of dragging results.** (Inspired by [MasaCtrl](https://ljzycmd.github.io/projects/MasaCtrl/))
+  * Enable Dragging Images with arbitrary aspect ratio
+  * Adding support for DPM++Solver (Generated Images)
+* [July 18th] v0.0.1 Release.
   * Integrate LoRA training into the User Interface. **No need to use training script and everything can be conveniently done in UI!**
   * Optimize User Interface layout.
   * Enable using better VAE for eyes and faces (See [this](https://stable-diffusion-art.com/how-to-use-vae/))
-* **[July 8th] v0.0.0 Release.**
+* [July 8th] v0.0.0 Release.
   * Implement Basic function of DragDiffusion
 
 ## Installation
@@ -129,6 +134,7 @@ This work is inspired by the amazing [DragGAN](https://vcai.mpi-inf.mpg.de/proje
 
 ## Related Links
 * [Drag Your GAN: Interactive Point-based Manipulation on the Generative Image Manifold](https://vcai.mpi-inf.mpg.de/projects/DragGAN/)
+* [MasaCtrl: Tuning-free Mutual Self-Attention Control for Consistent Image Synthesis and Editing](https://ljzycmd.github.io/projects/MasaCtrl/)
 * [Emergent Correspondence from Image Diffusion](https://diffusionfeatures.github.io/)
 * [DragonDiffusion: Enabling Drag-style Manipulation on Diffusion Models](https://mc-e.github.io/project/DragonDiffusion/)
 * [FreeDrag: Point Tracking is Not You Need for Interactive Point-based Image Editing](https://lin-chen.site/projects/freedrag/)
