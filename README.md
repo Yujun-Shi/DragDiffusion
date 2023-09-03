@@ -13,14 +13,14 @@
     &nbsp;&nbsp;
     <a href="https://songbai.site/"><strong>Song Bai</strong></a>
   </p>
-  <div align="center">
-    <img src="./release-doc/asset/github_video.gif", width="700">
-  </div>
   <br>
   <div align="center">
     <img src="./release-doc/asset/counterfeit-1.png", width="700">
     <img src="./release-doc/asset/counterfeit-2.png", width="700">
     <img src="./release-doc/asset/majix_realistic.png", width="700">
+  </div>
+  <div align="center">
+    <img src="./release-doc/asset/github_video.gif", width="700">
   </div>
   <p align="center">
     <a href="https://arxiv.org/abs/2306.14435"><img alt='arXiv' src="https://img.shields.io/badge/arXiv-2306.14435-b31b1b.svg"></a>
