@@ -273,6 +273,10 @@ def run_drag(source_image,
         num_actual_inference_steps=args.n_actual_inference_step
         )[1].unsqueeze(dim=0)
 
+    # resize gen_image into the size of source_image
+    # we do this because shape of gen_image will be rounded to multipliers of 8
+    gen_image = F.interpolate(gen_image, (full_h, full_w), mode='bilinear')
+
     # save the original image, user editing instructions, synthesized image
     save_result = torch.cat([
         source_image * 0.5 + 0.5,
@@ -514,6 +518,10 @@ def run_drag_gen(
         num_inference_steps=args.n_inference_step,
         num_actual_inference_steps=args.n_actual_inference_step
         )[1].unsqueeze(dim=0)
+
+    # resize gen_image into the size of source_image
+    # we do this because shape of gen_image will be rounded to multipliers of 8
+    gen_image = F.interpolate(gen_image, (full_h, full_w), mode='bilinear')
 
     # save the original image, user editing instructions, synthesized image
     save_result = torch.cat([
