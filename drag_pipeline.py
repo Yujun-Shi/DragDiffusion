@@ -55,7 +55,6 @@ def override_forward(self):
         upsample_size = None
 
         if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
-            logger.info("Forward upsample size to force interpolation output size.")
             forward_upsample_size = True
 
         # prepare attention_mask
