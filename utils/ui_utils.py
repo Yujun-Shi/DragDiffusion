@@ -276,9 +276,9 @@ def run_drag(source_image,
     # save the original image, user editing instructions, synthesized image
     save_result = torch.cat([
         source_image * 0.5 + 0.5,
-        torch.ones((1,3,512,25)).cuda(),
+        torch.ones((1,3,full_h,25)).cuda(),
         image_with_clicks * 0.5 + 0.5,
-        torch.ones((1,3,512,25)).cuda(),
+        torch.ones((1,3,full_h,25)).cuda(),
         gen_image[0:1]
     ], dim=-1)
 
