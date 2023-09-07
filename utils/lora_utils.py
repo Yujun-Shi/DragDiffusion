@@ -212,18 +212,18 @@ def train_lora(image, prompt, model_path, vae_path, save_lora_path, lora_step, l
     # initialize latent distribution
     image_transforms = transforms.Compose(
         [
-            # transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+            transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.RandomCrop(512),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
         ]
     )
 
-    image = image_transforms(Image.fromarray(image)).to(device, dtype=torch.float16)
-    image = image.unsqueeze(dim=0)
-    latents_dist = vae.encode(image).latent_dist
     for _ in progress.tqdm(range(lora_step), desc="training LoRA"):
         unet.train()
+        image_transformed = image_transforms(Image.fromarray(image)).to(device, dtype=torch.float16)
+        image_transformed = image_transformed.unsqueeze(dim=0)
+        latents_dist = vae.encode(image_transformed).latent_dist
         model_input = latents_dist.sample() * vae.config.scaling_factor
         # Sample noise that we'll add to the latents
         noise = torch.randn_like(model_input)
