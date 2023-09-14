@@ -86,7 +86,7 @@ def drag_diffusion_update(model,
     # the init output feature of unet
     with torch.no_grad():
         unet_output, F0 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_emb,
-            layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res, interp_res_w=args.sup_res)
+            layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
         x_prev_0,_ = model.step(unet_output, t, init_code)
         # init_code_orig = copy.deepcopy(init_code)
 
@@ -103,7 +103,7 @@ def drag_diffusion_update(model,
     for step_idx in range(args.n_pix_step):
         with torch.autocast(device_type='cuda', dtype=torch.float16):
             unet_output, F1 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_emb,
-                layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res, interp_res_w=args.sup_res)
+                layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
             x_prev_updated,_ = model.step(unet_output, t, init_code)
 
             # do point tracking to update handle points before computing motion supervision loss

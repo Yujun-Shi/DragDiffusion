@@ -193,17 +193,18 @@ def run_drag(source_image,
 
     args.unet_feature_idx = [3]
 
-    args.sup_res = 256
-
     args.r_m = 1
     args.r_p = 3
     args.lam = lam
 
     args.lr = latent_lr
-
     args.n_pix_step = n_pix_step
-    print(args)
+
     full_h, full_w = source_image.shape[:2]
+    args.sup_res_h = int(0.5*full_h)
+    args.sup_res_w = int(0.5*full_w)
+
+    print(args)
 
     source_image = preprocess_image(source_image, device)
     image_with_clicks = preprocess_image(image_with_clicks, device)
@@ -227,13 +228,13 @@ def run_drag(source_image,
     mask = torch.from_numpy(mask).float() / 255.
     mask[mask > 0.0] = 1.0
     mask = rearrange(mask, "h w -> 1 1 h w").cuda()
-    mask = F.interpolate(mask, (args.sup_res, args.sup_res), mode="nearest")
+    mask = F.interpolate(mask, (args.sup_res_h, args.sup_res_w), mode="nearest")
 
     handle_points = []
     target_points = []
     # here, the point is in x,y coordinate
     for idx, point in enumerate(points):
-        cur_point = torch.tensor([point[1] / full_h, point[0] / full_w]) * args.sup_res
+        cur_point = torch.tensor([point[1]/full_h*args.sup_res_h, point[0]/full_w*args.sup_res_w])
         cur_point = torch.round(cur_point)
         if idx % 2 == 0:
             handle_points.append(cur_point)
