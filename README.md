@@ -34,6 +34,7 @@
 This is a research project, NOT a commercial product.
 
 ## News and Update
+* [Oct 3rd] Speeding up LoRA training when editing real images. (**Now only around 20s on A100!**)
 * [Sept 3rd] v0.1.0 Release.
   * Enable **Dragging Diffusion-Generated Images.**
   * Introducing a new guidance mechanism that **greatly improve quality of dragging results.** (Inspired by [MasaCtrl](https://ljzycmd.github.io/projects/MasaCtrl/))
