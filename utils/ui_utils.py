@@ -127,6 +127,7 @@ def train_lora_interface(original_image,
                          lora_path,
                          lora_step,
                          lora_lr,
+                         lora_batch_size,
                          lora_rank,
                          progress=gr.Progress()):
     train_lora(
@@ -137,6 +138,7 @@ def train_lora_interface(original_image,
         lora_path,
         lora_step,
         lora_lr,
+        lora_batch_size,
         lora_rank,
         progress)
     return "Training LoRA Done!"
