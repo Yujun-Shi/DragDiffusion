@@ -105,7 +105,18 @@ def encode_prompt(text_encoder, input_ids, attention_mask, text_encoder_use_atte
 # lora_step: number of lora training step
 # lora_lr: learning rate of lora training
 # lora_rank: the rank of lora
-def train_lora(image, prompt, model_path, vae_path, save_lora_path, lora_step, lora_lr, lora_rank, progress):
+# save_interval: the frequency of saving lora checkpoints
+def train_lora(image,
+    prompt,
+    model_path,
+    vae_path,
+    save_lora_path,
+    lora_step,
+    lora_lr,
+    lora_batch_size,
+    lora_rank,
+    progress,
+    save_interval=-1):
     # initialize accelerator
     accelerator = Accelerator(
         gradient_accumulation_steps=1,
@@ -208,6 +219,7 @@ def train_lora(image, prompt, model_path, vae_path, save_lora_path, lora_step, l
             text_inputs.attention_mask,
             text_encoder_use_attention_mask=False
         )
+        text_embedding = text_embedding.repeat(lora_batch_size, 1, 1)
 
     # initialize latent distribution
     image_transforms = transforms.Compose(
@@ -219,11 +231,18 @@ def train_lora(image, prompt, model_path, vae_path, save_lora_path, lora_step, l
         ]
     )
 
-    for _ in progress.tqdm(range(lora_step), desc="training LoRA"):
+    for step in progress.tqdm(range(lora_step), desc="training LoRA"):
         unet.train()
-        image_transformed = image_transforms(Image.fromarray(image)).to(device, dtype=torch.float16)
-        image_transformed = image_transformed.unsqueeze(dim=0)
-        latents_dist = vae.encode(image_transformed).latent_dist
+        image_batch = []
+        for _ in range(lora_batch_size):
+            image_transformed = image_transforms(Image.fromarray(image)).to(device, dtype=torch.float16)
+            image_transformed = image_transformed.unsqueeze(dim=0)
+            image_batch.append(image_transformed)
+
+        # repeat the image_transformed to enable multi-batch training
+        image_batch = torch.cat(image_batch, dim=0)
+
+        latents_dist = vae.encode(image_batch).latent_dist
         model_input = latents_dist.sample() * vae.config.scaling_factor
         # Sample noise that we'll add to the latents
         noise = torch.randn_like(model_input)
@@ -255,8 +274,23 @@ def train_lora(image, prompt, model_path, vae_path, save_lora_path, lora_step, l
         lr_scheduler.step()
         optimizer.zero_grad()
 
+        if save_interval > 0 and (step + 1) % save_interval == 0:
+            save_lora_path_intermediate = os.path.join(save_lora_path, str(step+1))
+            if not os.path.isdir(save_lora_path_intermediate):
+                os.mkdir(save_lora_path_intermediate)
+            # unet = unet.to(torch.float32)
+            # unwrap_model is used to remove all special modules added when doing distributed training
+            # so here, there is no need to call unwrap_model
+            # unet_lora_layers = accelerator.unwrap_model(unet_lora_layers)
+            LoraLoaderMixin.save_lora_weights(
+                save_directory=save_lora_path_intermediate,
+                unet_lora_layers=unet_lora_layers,
+                text_encoder_lora_layers=None,
+            )
+            # unet = unet.to(torch.float16)
+
     # save the trained lora
-    unet = unet.to(torch.float32)
+    # unet = unet.to(torch.float32)
     # unwrap_model is used to remove all special modules added when doing distributed training
     # so here, there is no need to call unwrap_model
     # unet_lora_layers = accelerator.unwrap_model(unet_lora_layers)

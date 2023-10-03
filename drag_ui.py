@@ -99,8 +99,9 @@ with gr.Blocks() as demo:
 
         with gr.Tab("LoRA Parameters"):
             with gr.Row():
-                lora_step = gr.Number(value=200, label="LoRA training steps", precision=0)
-                lora_lr = gr.Number(value=0.0002, label="LoRA learning rate")
+                lora_step = gr.Number(value=60, label="LoRA training steps", precision=0)
+                lora_lr = gr.Number(value=0.0005, label="LoRA learning rate")
+                lora_batch_size = gr.Number(value=4, label="LoRA batch size", precision=0)
                 lora_rank = gr.Number(value=16, label="LoRA rank", precision=0)
 
     # UI components for editing generated images
@@ -145,8 +146,8 @@ with gr.Blocks() as demo:
                         "gsdf/Counterfeit-V2.5",
                         "emilianJR/majicMIX_realistic",
                         "SG161222/Realistic_Vision_V2.0",
-                        "huangzhe0803/ArchitectureRealMix",
-                        "stablediffusionapi/interiordesignsuperm"
+                        "stablediffusionapi/interiordesignsuperm",
+                        "stablediffusionapi/dvarch",
                     ] + local_models_choice
                 )
                 vae_path_gen = gr.Dropdown(value="default",
@@ -213,6 +214,7 @@ with gr.Blocks() as demo:
         lora_path,
         lora_step,
         lora_lr,
+        lora_batch_size,
         lora_rank],
         [lora_status_bar]
     )
