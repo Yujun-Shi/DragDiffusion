@@ -34,7 +34,7 @@
 This is a research project, NOT a commercial product.
 
 ## News and Update
-* [Oct 16th] Integrate FreeU when dragging generated image.
+* [Oct 16th] Integrate [FreeU](https://chenyangsi.top/FreeU/) when dragging generated image.
 * [Oct 3rd] Speeding up LoRA training when editing real images. (**Now only around 20s on A100!**)
 * [Sept 3rd] v0.1.0 Release.
   * Enable **Dragging Diffusion-Generated Images.**
