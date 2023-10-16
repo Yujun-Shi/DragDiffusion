@@ -171,23 +171,6 @@ with gr.Blocks() as demo:
                 )
                 n_inference_step_gen = gr.Number(value=50, label="Total Sampling Steps", precision=0)
 
-        with gr.Tab(label="Drag Config"):
-            with gr.Row():
-                n_pix_step_gen = gr.Number(
-                    value=40,
-                    label="Number of Pixel Steps",
-                    info="Number of gradient descent (motion supervision) steps on latent.",
-                    precision=0)
-                lam_gen = gr.Number(value=0.1, label="lam", info="regularization strength on unmasked areas")
-                # n_actual_inference_step_gen = gr.Number(value=40, label="optimize latent step", precision=0)
-                inversion_strength_gen = gr.Slider(0, 1.0,
-                    value=0.75,
-                    label="Inversion Strength",
-                    info="The latent at [inversion-strength * total-sampling-steps] is optimized for dragging.")
-                latent_lr_gen = gr.Number(value=0.01, label="latent lr")
-                start_step_gen = gr.Number(value=0, label="start_step", precision=0, visible=False)
-                start_layer_gen = gr.Number(value=10, label="start_layer", precision=0, visible=False)
-
         with gr.Tab("FreeU Parameters"):
             with gr.Row():
                 b1_gen = gr.Slider(label='b1',
@@ -215,6 +198,22 @@ with gr.Blocks() as demo:
                                 step=0.05,
                                 value=0.8)
 
+        with gr.Tab(label="Drag Config"):
+            with gr.Row():
+                n_pix_step_gen = gr.Number(
+                    value=40,
+                    label="Number of Pixel Steps",
+                    info="Number of gradient descent (motion supervision) steps on latent.",
+                    precision=0)
+                lam_gen = gr.Number(value=0.1, label="lam", info="regularization strength on unmasked areas")
+                # n_actual_inference_step_gen = gr.Number(value=40, label="optimize latent step", precision=0)
+                inversion_strength_gen = gr.Slider(0, 1.0,
+                    value=0.75,
+                    label="Inversion Strength",
+                    info="The latent at [inversion-strength * total-sampling-steps] is optimized for dragging.")
+                latent_lr_gen = gr.Number(value=0.01, label="latent lr")
+                start_step_gen = gr.Number(value=0, label="start_step", precision=0, visible=False)
+                start_layer_gen = gr.Number(value=10, label="start_layer", precision=0, visible=False)
 
     # event definition
     # event for dragging user-input real image
