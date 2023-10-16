@@ -34,6 +34,7 @@
 This is a research project, NOT a commercial product.
 
 ## News and Update
+* [Oct 16th] Integrate FreeU when dragging generated image.
 * [Oct 3rd] Speeding up LoRA training when editing real images. (**Now only around 20s on A100!**)
 * [Sept 3rd] v0.1.0 Release.
   * Enable **Dragging Diffusion-Generated Images.**
@@ -67,17 +68,29 @@ You may check our [GIF above](https://github.com/Yujun-Shi/DragDiffusion/blob/ma
 
 Basically, it consists of the following steps:
 
-#### Step 1: train a LoRA
-1) Drop our input image into the left-most box.
-2) Input a prompt describing the image in the "prompt" field
-3) Click the "Train LoRA" button to train a LoRA given the input image
+### Case 1: Dragging Input Real Images
+#### 1) train a LoRA
+* Drop our input image into the left-most box.
+* Input a prompt describing the image in the "prompt" field
+* Click the "Train LoRA" button to train a LoRA given the input image
 
-#### Step 2: do "drag" editing
-1) Draw a mask in the left-most box to specify the editable areas.
-2) Click handle and target points in the middle box. Also, you may reset all points by clicking "Undo point".
-3) Click the "Run" button to run our algorithm. Edited results will be displayed in the right-most box.
+#### 2) do "drag" editing
+* Draw a mask in the left-most box to specify the editable areas.
+* Click handle and target points in the middle box. Also, you may reset all points by clicking "Undo point".
+* Click the "Run" button to run our algorithm. Edited results will be displayed in the right-most box.
+
+### Case 2: Dragging Diffusion-Generated Images
+#### 1) generate an image
+* Fill in the generation parameters (e.g., positive/negative prompt, parameters under Generation Config & FreeU Parameters).
+* Click "Generate Image".
+
+#### 2) do "drag" on the generated image
+* Draw a mask in the left-most box to specify the editable areas
+* Click handle points and target points in the middle box.
+* Click the "Run" button to run our algorithm. Edited results will be displayed in the right-most box.
 
 
+<!---
 ## Explanation for parameters in the user interface:
 #### General Parameters
 |Parameter|Explanation|
@@ -111,12 +124,14 @@ These parameters are collapsed by default as we normally do not have to tune the
 |LoRA learning rate|Learning rate of LoRA (do not have to tune in most cases)|
 |LoRA rank|Rank of the LoRA (do not have to tune in most cases).|
 
+--->
 
 ## License
 Code related to the DragDiffusion algorithm is under Apache 2.0 license.
 
 
 ## BibTeX
+If you find our repo helpful, please consider leaving a star or cite our paper :)
 ```bibtex
 @article{shi2023dragdiffusion,
   title={DragDiffusion: Harnessing Diffusion Models for Interactive Point-based Image Editing},
