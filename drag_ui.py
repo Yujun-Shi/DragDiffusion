@@ -188,6 +188,34 @@ with gr.Blocks() as demo:
                 start_step_gen = gr.Number(value=0, label="start_step", precision=0, visible=False)
                 start_layer_gen = gr.Number(value=10, label="start_layer", precision=0, visible=False)
 
+        with gr.Tab("FreeU Parameters"):
+            with gr.Row():
+                b1_gen = gr.Slider(label='b1',
+                                info='1st stage backbone factor',
+                                minimum=1,
+                                maximum=1.6,
+                                step=0.05,
+                                value=1.1)
+                b2_gen = gr.Slider(label='b2',
+                                info='2nd stage backbone factor',
+                                minimum=1,
+                                maximum=1.6,
+                                step=0.05,
+                                value=1.1)
+                s1_gen = gr.Slider(label='s1',
+                                info='1st stage skip factor',
+                                minimum=0,
+                                maximum=1,
+                                step=0.05,
+                                value=0.8)
+                s2_gen = gr.Slider(label='s2',
+                                info='2nd stage skip factor',
+                                minimum=0,
+                                maximum=1,
+                                step=0.05,
+                                value=0.8)
+
+
     # event definition
     # event for dragging user-input real image
     canvas.edit(
@@ -274,6 +302,10 @@ with gr.Blocks() as demo:
         model_path_gen,
         vae_path_gen,
         lora_path_gen,
+        b1_gen,
+        b2_gen,
+        s1_gen,
+        s2_gen,
         ],
         [canvas_gen, input_image_gen, output_image_gen, mask_gen, intermediate_latents_gen]
     )
@@ -304,6 +336,10 @@ with gr.Blocks() as demo:
         lora_path_gen,
         start_step_gen,
         start_layer_gen,
+        b1_gen,
+        b2_gen,
+        s1_gen,
+        s2_gen,
         ],
         [output_image_gen]
     )

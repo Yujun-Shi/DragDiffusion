@@ -22,6 +22,7 @@ from pytorch_lightning import seed_everything
 from .drag_utils import drag_diffusion_update, drag_diffusion_update_gen
 from .lora_utils import train_lora
 from .attn_utils import register_attention_editor_diffusers, MutualSelfAttentionControl
+from .freeu_utils import register_free_upblock2d, register_free_crossattn_upblock2d
 
 
 # -------------- general UI functionality --------------
@@ -315,7 +316,11 @@ def gen_img(
     neg_prompt,
     model_path,
     vae_path,
-    lora_path):
+    lora_path,
+    b1,
+    b2,
+    s1,
+    s2):
     # initialize model
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = DragPipeline.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
@@ -350,6 +355,14 @@ def gen_img(
     if lora_path != "":
         print("applying lora: " + lora_path)
         model.load_lora_weights(lora_path, weight_name="lora.safetensors")
+
+    # apply FreeU
+    if b1 != 1.0 or b2!=1.0 or s1!=1.0 or s2!=1.0:
+        print('applying FreeU')
+        register_free_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+        register_free_crossattn_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+    else:
+        print('do not apply FreeU')
 
     # initialize init noise
     seed_everything(seed)
@@ -397,6 +410,10 @@ def run_drag_gen(
     lora_path,
     start_step,
     start_layer,
+    b1,
+    b2,
+    s1,
+    s2,
     save_dir="./results"):
     # initialize model
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -467,6 +484,14 @@ def run_drag_gen(
     if lora_path != "":
         print("applying lora: " + lora_path)
         model.load_lora_weights(lora_path, weight_name="lora.safetensors")
+
+    # apply FreeU
+    if b1 != 1.0 or b2!=1.0 or s1!=1.0 or s2!=1.0:
+        print('applying FreeU')
+        register_free_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+        register_free_crossattn_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+    else:
+        print('do not apply FreeU')
 
     mask = torch.from_numpy(mask).float() / 255.
     mask[mask > 0.0] = 1.0
