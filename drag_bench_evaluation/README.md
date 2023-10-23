@@ -4,18 +4,18 @@
 Extract [DragBench](https://github.com/Yujun-Shi/DragDiffusion/releases/download/v0.1.1/DragBench.zip) into the folder "drag_bench_data".
 Resulting directory hierarchy should look like the following:
 
-drag_bench_data
---- animals
------- JH_2023-09-14-1820-16
------- JH_2023-09-14-1821-23
------- JH_2023-09-14-1821-58
------- ...
---- art_work
---- building_city_view
---- ...
---- other_objects
-
-<br><br>
+<br>
+drag_bench_data<br>
+--- animals<br>
+------ JH_2023-09-14-1820-16<br>
+------ JH_2023-09-14-1821-23<br>
+------ JH_2023-09-14-1821-58<br>
+------ ...<br>
+--- art_work<br>
+--- building_city_view<br>
+--- ...<br>
+--- other_objects<br>
+<br>
 
 ## Step 2: train LoRA.
 Train one LoRA on each image in drag_bench_data.
