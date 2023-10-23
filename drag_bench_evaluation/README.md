@@ -5,15 +5,15 @@ Extract [DragBench](https://github.com/Yujun-Shi/DragDiffusion/releases/download
 Resulting directory hierarchy should look like the following:
 
 drag_bench_data
-$~~~~~$- animals
-$~~~~~~~~~~$- JH_2023-09-14-1820-16
-$~~~~~~~~~~$- JH_2023-09-14-1821-23
-$~~~~~~~~~~$- JH_2023-09-14-1821-58
-$~~~~~~~~~~$...
-$~~~~~$- art_work
-$~~~~~$- building_city_view
-$~~~~~$...
-$~~~~~$- other_objects
+--- animals
+------ JH_2023-09-14-1820-16
+------ JH_2023-09-14-1821-23
+------ JH_2023-09-14-1821-58
+------ ...
+--- art_work
+--- building_city_view
+--- ...
+--- other_objects
 
 <br><br>
 
