@@ -17,7 +17,7 @@ drag_bench_data<br>
 --- other_objects<br>
 <br>
 
-## Step 2: train LoRA.
+### Step 2: train LoRA.
 Train one LoRA on each image in drag_bench_data.
 To do this, simply execute "run_lora_training.py".
 Trained LoRAs will be saved in "drag_bench_lora"
