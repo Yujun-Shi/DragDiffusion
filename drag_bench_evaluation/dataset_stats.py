@@ -55,3 +55,5 @@ if __name__ == '__main__':
             points = meta_data['points']
             num_samples += 1
             num_pair_points += len(points) // 2
+    print(num_samples)
+    print(num_pair_points)
