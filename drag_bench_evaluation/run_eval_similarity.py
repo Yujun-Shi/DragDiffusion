@@ -66,6 +66,8 @@ if __name__ == '__main__':
         all_clip_sim = []
         for cat in all_category:
             for file_name in os.listdir(os.path.join(original_img_root, cat)):
+                if file_name == '.DS_Store':
+                    continue
                 source_image_path = os.path.join(original_img_root, cat, file_name, 'original_image.png')
                 dragged_image_path = os.path.join(target_root, cat, file_name, 'dragged_image.png')
 

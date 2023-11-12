@@ -60,6 +60,8 @@ if __name__ == '__main__':
         all_dist = []
         for cat in all_category:
             for file_name in os.listdir(os.path.join(original_img_root, cat)):
+                if file_name == '.DS_Store':
+                    continue
                 with open(os.path.join(original_img_root, cat, file_name, 'meta_data.pkl'), 'rb') as f:
                     meta_data = pickle.load(f)
                 prompt = meta_data['prompt']

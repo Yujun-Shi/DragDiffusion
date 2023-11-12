@@ -228,6 +228,8 @@ if __name__ == '__main__':
     for cat in all_category:
         file_dir = os.path.join(root_dir, cat)
         for sample_name in os.listdir(file_dir):
+            if sample_name == '.DS_Store':
+                continue
             sample_path = os.path.join(file_dir, sample_name)
 
             # read image file
