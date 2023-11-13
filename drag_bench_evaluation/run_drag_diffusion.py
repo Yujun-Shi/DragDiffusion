@@ -60,6 +60,7 @@ def run_drag(source_image,
              inversion_strength,
              lam,
              latent_lr,
+             unet_feature_idx,
              n_pix_step,
              model_path,
              vae_path,
@@ -95,7 +96,7 @@ def run_drag(source_image,
     args.n_actual_inference_step = round(inversion_strength * args.n_inference_step)
     args.guidance_scale = 1.0
 
-    args.unet_feature_idx = [3]
+    args.unet_feature_idx = [unet_feature_idx]
 
     args.r_m = 1
     args.r_p = 3
@@ -206,6 +207,7 @@ if __name__ == '__main__':
     parser.add_argument('--lora_steps', type=int, help='number of lora fine-tuning steps')
     parser.add_argument('--inv_strength', type=float, help='inversion strength')
     parser.add_argument('--latent_lr', type=float, default=0.01, help='latent learning rate')
+    parser.add_argument('--unet_feature_idx', type=int, default=3, help='feature idx of unet features')
     args = parser.parse_args()
 
     all_category = [
@@ -265,6 +267,7 @@ if __name__ == '__main__':
                 inversion_strength=args.inv_strength,
                 lam=0.1,
                 latent_lr=args.latent_lr,
+                unet_feature_idx=args.unet_feature_idx,
                 n_pix_step=80,
                 model_path="runwayml/stable-diffusion-v1-5",
                 vae_path="default",
