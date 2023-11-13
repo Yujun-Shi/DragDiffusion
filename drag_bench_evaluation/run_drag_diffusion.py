@@ -17,6 +17,7 @@
 # *************************************************************************
 
 # run results of DragDiffusion
+import argparse
 import os
 import datetime
 import numpy as np
@@ -201,6 +202,12 @@ def run_drag(source_image,
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="setting arguments")
+    parser.add_argument('--lora_steps', type=int, help='number of lora fine-tuning steps')
+    parser.add_argument('--inv_strength', type=float, help='inversion strength')
+    parser.add_argument('--latent_lr', type=float, default=0.01, help='latent learning rate')
+    args = parser.parse_args()
+
     all_category = [
         'art_work',
         'land_scape',
@@ -217,7 +224,10 @@ if __name__ == '__main__':
     # assume root_dir and lora_dir are valid directory
     root_dir = 'drag_bench_data'
     lora_dir = 'drag_bench_lora'
-    result_dir = 'drag_diffusion_res'
+    result_dir = 'drag_diffusion_res' + \
+        '_' + str(args.lora_steps) + \
+        '_' + str(args.inv_strength) + \
+        '_' + str(args.latent_lr)
 
     # mkdir if necessary
     if not os.path.isdir(result_dir):
@@ -244,8 +254,7 @@ if __name__ == '__main__':
             points = meta_data['points']
 
             # load lora
-            # using LoRA @ 200 steps
-            lora_path = os.path.join(lora_dir, cat, sample_name, str(200))
+            lora_path = os.path.join(lora_dir, cat, sample_name, str(args.lora_steps))
             print("applying lora: " + lora_path)
 
             out_image = run_drag(
@@ -253,9 +262,9 @@ if __name__ == '__main__':
                 mask,
                 prompt,
                 points,
-                inversion_strength=0.7,
+                inversion_strength=args.inv_strength,
                 lam=0.1,
-                latent_lr=0.01,
+                latent_lr=args.latent_lr,
                 n_pix_step=80,
                 model_path="runwayml/stable-diffusion-v1-5",
                 vae_path="default",
