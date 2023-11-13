@@ -42,6 +42,7 @@ if __name__ == '__main__':
         action='append',
         help='root of dragging results for evaluation',
         required=True)
+    args = parser.parse_args()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
