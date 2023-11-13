@@ -17,6 +17,7 @@
 # *************************************************************************
 
 # run evaluation of mean distance between the desired target points and the position of final handle points
+import argparse
 import os
 import pickle
 import numpy as np
@@ -31,6 +32,12 @@ from pytorch_lightning import seed_everything
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="setting arguments")
+    parser.add_argument('--eval_root',
+        action='append',
+        help='root of dragging results for evaluation',
+        required=True)
+    
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # using SD-2.1
@@ -50,10 +57,8 @@ if __name__ == '__main__':
     ]
 
     original_img_root = 'drag_bench_data/'
-    # you may put more root path of your results here
-    evaluate_root = ['drag_diffusion_res']
 
-    for target_root in evaluate_root:
+    for target_root in args.eval_root:
         # fixing the seed for semantic correspondence
         seed_everything(42)
 

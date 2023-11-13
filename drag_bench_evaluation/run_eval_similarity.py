@@ -17,6 +17,7 @@
 # *************************************************************************
 
 # evaluate similarity between images before and after dragging
+import argparse
 import os
 from einops import rearrange
 import numpy as np
@@ -36,6 +37,12 @@ def preprocess_image(image,
     return image
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="setting arguments")
+    parser.add_argument('--eval_root',
+        action='append',
+        help='root of dragging results for evaluation',
+        required=True)
+
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # lpip metric
@@ -58,10 +65,8 @@ if __name__ == '__main__':
     ]
 
     original_img_root = 'drag_bench_data/'
-    # you may put more root path of your results here
-    evaluate_root = ['drag_diffusion_res']
 
-    for target_root in evaluate_root:
+    for target_root in args.eval_root:
         all_lpips = []
         all_clip_sim = []
         for cat in all_category:
