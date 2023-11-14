@@ -69,10 +69,10 @@ def interpolate_feature_patch(feat,
     wc = (x1 - x1_floor.float()) * (y1_cell.float() - y1)
     wd = (x1 - x1_floor.float()) * (y1 - y1_floor.float())
 
-    Ia = feat[:, :, y1_floor : y1_floor+dy+1, x1_floor : x1_floor+dx+1]
-    Ib = feat[:, :, y1_cell : y1_cell+dy+1, x1_floor : x1_floor+dx+1]
-    Ic = feat[:, :, y1_floor : y1_floor+dy+1, x1_cell : x1_cell+dx+1]
-    Id = feat[:, :, y1_cell : y1_cell+dy+1, x1_cell : x1_cell+dx+1]
+    Ia = feat[:, :, y1_floor : y1_floor+dy, x1_floor : x1_floor+dx]
+    Ib = feat[:, :, y1_cell : y1_cell+dy, x1_floor : x1_floor+dx]
+    Ic = feat[:, :, y1_floor : y1_floor+dy, x1_cell : x1_cell+dx]
+    Id = feat[:, :, y1_cell : y1_cell+dy, x1_cell : x1_cell+dx]
 
     return Ia * wa + Ib * wb + Ic * wc + Id * wd
 
