@@ -27,19 +27,21 @@ def point_tracking(F0,
                    handle_points_init,
                    args):
     with torch.no_grad():
+        _, _, max_r, max_c = F0.shape
         for i in range(len(handle_points)):
             pi0, pi = handle_points_init[i], handle_points[i]
             f0 = F0[:, :, int(pi0[0]), int(pi0[1])]
 
-            r1, r2 = int(pi[0])-args.r_p, int(pi[0])+args.r_p+1
-            c1, c2 = int(pi[1])-args.r_p, int(pi[1])+args.r_p+1
+            r1, r2 = max(0,int(pi[0])-args.r_p), min(max_r,int(pi[0])+args.r_p+1)
+            c1, c2 = max(0,int(pi[1])-args.r_p), min(max_c,int(pi[1])+args.r_p+1)
             F1_neighbor = F1[:, :, r1:r2, c1:c2]
             all_dist = (f0.unsqueeze(dim=-1).unsqueeze(dim=-1) - F1_neighbor).abs().sum(dim=1)
             all_dist = all_dist.squeeze(dim=0)
-            # WARNING: no boundary protection right now
             row, col = divmod(all_dist.argmin().item(), all_dist.shape[-1])
-            handle_points[i][0] = pi[0] - args.r_p + row
-            handle_points[i][1] = pi[1] - args.r_p + col
+            # handle_points[i][0] = pi[0] - args.r_p + row
+            # handle_points[i][1] = pi[1] - args.r_p + col
+            handle_points[i][0] = r1 + row
+            handle_points[i][1] = c1 + col
         return handle_points
 
 def check_handle_reach_target(handle_points,
@@ -50,24 +52,27 @@ def check_handle_reach_target(handle_points,
 
 # obtain the bilinear interpolated feature patch centered around (x, y) with radius r
 def interpolate_feature_patch(feat,
-                              y,
-                              x,
-                              r):
-    x0 = torch.floor(x).long()
-    x1 = x0 + 1
+                              y1,
+                              y2,
+                              x1,
+                              x2):
+    x1_floor = torch.floor(x1).long()
+    x1_cell = x1_floor + 1
+    dx = torch.floor(x2).long() - torch.floor(x1).long()
 
-    y0 = torch.floor(y).long()
-    y1 = y0 + 1
+    y1_floor = torch.floor(y1).long()
+    y1_cell = y1_floor + 1
+    dy = torch.floor(y2).long() - torch.floor(y1).long()
 
-    wa = (x1.float() - x) * (y1.float() - y)
-    wb = (x1.float() - x) * (y - y0.float())
-    wc = (x - x0.float()) * (y1.float() - y)
-    wd = (x - x0.float()) * (y - y0.float())
+    wa = (x1_cell.float() - x1) * (y1_cell.float() - y1)
+    wb = (x1_cell.float() - x1) * (y1 - y1_floor.float())
+    wc = (x1 - x1_floor.float()) * (y1_cell.float() - y1)
+    wd = (x1 - x1_floor.float()) * (y1 - y1_floor.float())
 
-    Ia = feat[:, :, y0-r:y0+r+1, x0-r:x0+r+1]
-    Ib = feat[:, :, y1-r:y1+r+1, x0-r:x0+r+1]
-    Ic = feat[:, :, y0-r:y0+r+1, x1-r:x1+r+1]
-    Id = feat[:, :, y1-r:y1+r+1, x1-r:x1+r+1]
+    Ia = feat[:, :, y1_floor : y1_floor+dy+1, x1_floor : x1_floor+dx+1]
+    Ib = feat[:, :, y1_cell : y1_cell+dy+1, x1_floor : x1_floor+dx+1]
+    Ic = feat[:, :, y1_floor : y1_floor+dy+1, x1_cell : x1_cell+dx+1]
+    Id = feat[:, :, y1_cell : y1_cell+dy+1, x1_cell : x1_cell+dx+1]
 
     return Ia * wa + Ib * wb + Ic * wc + Id * wd
 
@@ -116,6 +121,7 @@ def drag_diffusion_update(model,
                 break
 
             loss = 0.0
+            _, _, max_r, max_c = F0.shape
             for i in range(len(handle_points)):
                 pi, ti = handle_points[i], target_points[i]
                 # skip if the distance between target and source is less than 1
@@ -125,8 +131,15 @@ def drag_diffusion_update(model,
                 di = (ti - pi) / (ti - pi).norm()
 
                 # motion supervision
-                f0_patch = F1[:,:,int(pi[0])-args.r_m:int(pi[0])+args.r_m+1, int(pi[1])-args.r_m:int(pi[1])+args.r_m+1].detach()
-                f1_patch = interpolate_feature_patch(F1, pi[0] + di[0], pi[1] + di[1], args.r_m)
+                # with boundary protection
+                r1, r2 = max(0,int(pi[0])-args.r_m), min(max_r,int(pi[0])+args.r_m+1)
+                c1, c2 = max(0,int(pi[1])-args.r_m), min(max_c,int(pi[1])+args.r_m+1)
+                f0_patch = F1[:,:,r1:r2, c1:c2].detach()
+                f1_patch = interpolate_feature_patch(F1,r1+di[0],r2+di[0],c1+di[1],c2+di[1])
+
+                # original code, without boundary protection
+                # f0_patch = F1[:,:,int(pi[0])-args.r_m:int(pi[0])+args.r_m+1, int(pi[1])-args.r_m:int(pi[1])+args.r_m+1].detach()
+                # f1_patch = interpolate_feature_patch(F1, pi[0] + di[0], pi[1] + di[1], args.r_m)
                 loss += ((2*args.r_m+1)**2)*F.l1_loss(f0_patch, f1_patch)
 
             # masked region must stay unchanged
