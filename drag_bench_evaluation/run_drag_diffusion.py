@@ -229,7 +229,8 @@ if __name__ == '__main__':
     result_dir = 'drag_diffusion_res' + \
         '_' + str(args.lora_steps) + \
         '_' + str(args.inv_strength) + \
-        '_' + str(args.latent_lr)
+        '_' + str(args.latent_lr) + \
+        '_' + str(args.unet_feature_idx)
 
     # mkdir if necessary
     if not os.path.isdir(result_dir):
