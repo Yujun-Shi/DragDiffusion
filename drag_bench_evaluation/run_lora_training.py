@@ -86,4 +86,4 @@ if __name__ == '__main__':
             train_lora(source_image, prompt,
                 model_path="runwayml/stable-diffusion-v1-5",
                 vae_path="default", save_lora_path=save_lora_path,
-                lora_step=200, lora_lr=0.0002, lora_rank=16, progress=tqdm, save_interval=100)
+                lora_step=80, lora_lr=0.0005, lora_batch_size=4, lora_rank=16, progress=tqdm, save_interval=10)

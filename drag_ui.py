@@ -66,14 +66,14 @@ with gr.Blocks() as demo:
         with gr.Tab("Drag Config"):
             with gr.Row():
                 n_pix_step = gr.Number(
-                    value=40,
+                    value=80,
                     label="number of pixel steps",
                     info="Number of gradient descent (motion supervision) steps on latent.",
                     precision=0)
                 lam = gr.Number(value=0.1, label="lam", info="regularization strength on unmasked areas")
                 # n_actual_inference_step = gr.Number(value=40, label="optimize latent step", precision=0)
                 inversion_strength = gr.Slider(0, 1.0,
-                    value=0.75,
+                    value=0.7,
                     label="inversion strength",
                     info="The latent at [inversion-strength * total-sampling-steps] is optimized for dragging.")
                 latent_lr = gr.Number(value=0.01, label="latent lr")
@@ -99,7 +99,7 @@ with gr.Blocks() as demo:
 
         with gr.Tab("LoRA Parameters"):
             with gr.Row():
-                lora_step = gr.Number(value=60, label="LoRA training steps", precision=0)
+                lora_step = gr.Number(value=80, label="LoRA training steps", precision=0)
                 lora_lr = gr.Number(value=0.0005, label="LoRA learning rate")
                 lora_batch_size = gr.Number(value=4, label="LoRA batch size", precision=0)
                 lora_rank = gr.Number(value=16, label="LoRA rank", precision=0)
@@ -201,14 +201,14 @@ with gr.Blocks() as demo:
         with gr.Tab(label="Drag Config"):
             with gr.Row():
                 n_pix_step_gen = gr.Number(
-                    value=40,
+                    value=80,
                     label="Number of Pixel Steps",
                     info="Number of gradient descent (motion supervision) steps on latent.",
                     precision=0)
                 lam_gen = gr.Number(value=0.1, label="lam", info="regularization strength on unmasked areas")
                 # n_actual_inference_step_gen = gr.Number(value=40, label="optimize latent step", precision=0)
                 inversion_strength_gen = gr.Slider(0, 1.0,
-                    value=0.75,
+                    value=0.7,
                     label="Inversion Strength",
                     info="The latent at [inversion-strength * total-sampling-steps] is optimized for dragging.")
                 latent_lr_gen = gr.Number(value=0.01, label="latent lr")
