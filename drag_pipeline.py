@@ -366,7 +366,8 @@ class DragPipeline(StableDiffusionPipeline):
         # iterative sampling
         self.scheduler.set_timesteps(num_inference_steps)
         # print("Valid timesteps: ", reversed(self.scheduler.timesteps))
-        latents_list = [latents]
+        if return_intermediates:
+            latents_list = [latents]
         for i, t in enumerate(tqdm(self.scheduler.timesteps, desc="DDIM Sampler")):
             if num_actual_inference_steps is not None and i < num_inference_steps - num_actual_inference_steps:
                 continue
@@ -385,7 +386,8 @@ class DragPipeline(StableDiffusionPipeline):
             # is that scheduler version would clamp pred_x0 between [-1,1]
             # don't know if that's gonna have huge impact
             latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
-            latents_list.append(latents)
+            if return_intermediates:
+                latents_list.append(latents)
 
         image = self.latent2image(latents, return_type="pt")
         if return_intermediates:
