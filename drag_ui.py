@@ -89,6 +89,9 @@ with gr.Blocks() as demo:
                     label="Diffusion Model Path",
                     choices=[
                         "runwayml/stable-diffusion-v1-5",
+                        "gsdf/Counterfeit-V2.5",
+                        "stablediffusionapi/anything-v5",
+                        "SG161222/Realistic_Vision_V2.0",
                     ] + local_models_choice
                 )
                 vae_path = gr.Dropdown(value="default",
