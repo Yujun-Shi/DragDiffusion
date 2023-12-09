@@ -234,22 +234,7 @@ def run_drag(source_image,
     source_image = preprocess_image(source_image, device, dtype=torch.float16)
     image_with_clicks = preprocess_image(image_with_clicks, device)
 
-    # set lora
-    if lora_path == "":
-        print("applying default parameters")
-        model.unet.set_default_attn_processor()
-    else:
-        print("applying lora: " + lora_path)
-        model.unet.load_attn_procs(lora_path)
-
-    # invert the source image
-    # the latent code resolution is too small, only 64*64
-    invert_code = model.invert(source_image,
-                               prompt,
-                               guidance_scale=args.guidance_scale,
-                               num_inference_steps=args.n_inference_step,
-                               num_actual_inference_steps=args.n_actual_inference_step)
-
+    # preparing editing meta data (handle, target, mask)
     mask = torch.from_numpy(mask).float() / 255.
     mask[mask > 0.0] = 1.0
     mask = rearrange(mask, "h w -> 1 1 h w").cuda()
@@ -268,6 +253,27 @@ def run_drag(source_image,
     print('handle points:', handle_points)
     print('target points:', target_points)
 
+    # set lora
+    if lora_path == "":
+        print("applying default parameters")
+        model.unet.set_default_attn_processor()
+    else:
+        print("applying lora: " + lora_path)
+        model.unet.load_attn_procs(lora_path)
+
+    # obtain text embeddings
+    text_embeddings = model.get_text_embeddings(prompt)
+
+    # invert the source image
+    # the latent code resolution is too small, only 64*64
+    invert_code = model.invert(source_image,
+                               prompt,
+                               text_embeddings=text_embeddings,
+                               guidance_scale=args.guidance_scale,
+                               num_inference_steps=args.n_inference_step,
+                               num_actual_inference_steps=args.n_actual_inference_step)
+
+
     init_code = invert_code
     init_code_orig = deepcopy(init_code)
     model.scheduler.set_timesteps(args.n_inference_step)
@@ -276,13 +282,13 @@ def run_drag(source_image,
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
     # update according to the given supervision
     init_code = init_code.float()
+    text_embeddings = text_embeddings.float()
     model.unet = model.unet.float()
-    model.text_encoder = model.text_encoder.float()
-    updated_init_code = drag_diffusion_update(model, init_code, t,
-        handle_points, target_points, mask, args)
+    updated_init_code = drag_diffusion_update(model, init_code,
+        text_embeddings, t, handle_points, target_points, mask, args)
     updated_init_code = updated_init_code.half()
+    text_embeddings = text_embeddings.half()
     model.unet = model.unet.half()
-    model.text_encoder = model.text_encoder.half()
 
     # hijack the attention module
     # inject the reference branch to guide the generation
@@ -298,6 +304,7 @@ def run_drag(source_image,
     # inference the synthesized image
     gen_image = model(
         prompt=args.prompt,
+        text_embeddings=torch.cat([text_embeddings, text_embeddings], dim=0),
         batch_size=2,
         latents=torch.cat([init_code_orig, updated_init_code], dim=0),
         guidance_scale=args.guidance_scale,
@@ -505,25 +512,11 @@ def run_drag_gen(
     source_image = preprocess_image(source_image, device)
     image_with_clicks = preprocess_image(image_with_clicks, device)
 
-    # set lora
-    #if lora_path == "":
-    #    print("applying default parameters")
-    #    model.unet.set_default_attn_processor()
-    #else:
-    #    print("applying lora: " + lora_path)
-    #    model.unet.load_attn_procs(lora_path)
     if lora_path != "":
         print("applying lora: " + lora_path)
         model.load_lora_weights(lora_path, weight_name="lora.safetensors")
 
-    # apply FreeU
-    if b1 != 1.0 or b2!=1.0 or s1!=1.0 or s2!=1.0:
-        print('applying FreeU')
-        register_free_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
-        register_free_crossattn_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
-    else:
-        print('do not apply FreeU')
-
+    # preparing editing meta data (handle, target, mask)
     mask = torch.from_numpy(mask).float() / 255.
     mask[mask > 0.0] = 1.0
     mask = rearrange(mask, "h w -> 1 1 h w").cuda()
@@ -542,6 +535,17 @@ def run_drag_gen(
     print('handle points:', handle_points)
     print('target points:', target_points)
 
+    # apply FreeU
+    if b1 != 1.0 or b2!=1.0 or s1!=1.0 or s2!=1.0:
+        print('applying FreeU')
+        register_free_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+        register_free_crossattn_upblock2d(model, b1=b1, b2=b2, s1=s1, s2=s2)
+    else:
+        print('do not apply FreeU')
+
+    # obtain text embeddings
+    text_embeddings = model.get_text_embeddings(prompt)
+
     model.scheduler.set_timesteps(args.n_inference_step)
     t = model.scheduler.timesteps[args.n_inference_step - args.n_actual_inference_step]
     init_code = deepcopy(intermediate_latents_gen[args.n_inference_step - args.n_actual_inference_step])
@@ -550,11 +554,13 @@ def run_drag_gen(
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
     # update according to the given supervision
     init_code = init_code.to(torch.float32)
-    model = model.to(device, torch.float32)
-    updated_init_code = drag_diffusion_update_gen(model, init_code, t,
-        handle_points, target_points, mask, args)
+    text_embeddings = text_embeddings.to(torch.float32)
+    model.unet = model.unet.to(torch.float32)
+    updated_init_code = drag_diffusion_update_gen(model, init_code,
+        text_embeddings, t, handle_points, target_points, mask, args)
     updated_init_code = updated_init_code.to(torch.float16)
-    model = model.to(device, torch.float16)
+    text_embeddings = text_embeddings.to(torch.float16)
+    model.unet = model.unet.to(torch.float16)
 
     # hijack the attention module
     # inject the reference branch to guide the generation

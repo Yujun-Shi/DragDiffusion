@@ -78,6 +78,7 @@ def interpolate_feature_patch(feat,
 
 def drag_diffusion_update(model,
                           init_code,
+                          text_embeddings,
                           t,
                           handle_points,
                           target_points,
@@ -87,10 +88,9 @@ def drag_diffusion_update(model,
     assert len(handle_points) == len(target_points), \
         "number of handle point must equals target points"
 
-    text_emb = model.get_text_embeddings(args.prompt).detach()
     # the init output feature of unet
     with torch.no_grad():
-        unet_output, F0 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_emb,
+        unet_output, F0 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_embeddings,
             layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
         x_prev_0,_ = model.step(unet_output, t, init_code)
         # init_code_orig = copy.deepcopy(init_code)
@@ -107,7 +107,7 @@ def drag_diffusion_update(model,
     scaler = torch.cuda.amp.GradScaler()
     for step_idx in range(args.n_pix_step):
         with torch.autocast(device_type='cuda', dtype=torch.float16):
-            unet_output, F1 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_emb,
+            unet_output, F1 = model.forward_unet_features(init_code, t, encoder_hidden_states=text_embeddings,
                 layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
             x_prev_updated,_ = model.step(unet_output, t, init_code)
 
@@ -156,6 +156,7 @@ def drag_diffusion_update(model,
 
 def drag_diffusion_update_gen(model,
                               init_code,
+                              text_embeddings,
                               t,
                               handle_points,
                               target_points,
@@ -166,7 +167,6 @@ def drag_diffusion_update_gen(model,
         "number of handle point must equals target points"
 
     # positive prompt embedding
-    text_emb = model.get_text_embeddings(args.prompt).detach()
     if args.guidance_scale > 1.0:
         unconditional_input = model.tokenizer(
             [args.neg_prompt],
@@ -174,8 +174,8 @@ def drag_diffusion_update_gen(model,
             max_length=77,
             return_tensors="pt"
         )
-        unconditional_emb = model.text_encoder(unconditional_input.input_ids.to(text_emb.device))[0].detach()
-        text_emb = torch.cat([unconditional_emb, text_emb], dim=0)
+        unconditional_emb = model.text_encoder(unconditional_input.input_ids.to(text_embeddings.device))[0].detach()
+        text_embeddings = torch.cat([unconditional_emb, text_embeddings], dim=0)
 
     # the init output feature of unet
     with torch.no_grad():
@@ -183,7 +183,7 @@ def drag_diffusion_update_gen(model,
             model_inputs_0 = copy.deepcopy(torch.cat([init_code] * 2))
         else:
             model_inputs_0 = copy.deepcopy(init_code)
-        unet_output, F0 = model.forward_unet_features(model_inputs_0, t, encoder_hidden_states=text_emb,
+        unet_output, F0 = model.forward_unet_features(model_inputs_0, t, encoder_hidden_states=text_embeddings,
             layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
         if args.guidance_scale > 1.:
             # strategy 1: discard the unconditional branch feature maps
@@ -215,7 +215,7 @@ def drag_diffusion_update_gen(model,
                 model_inputs = init_code.repeat(2,1,1,1)
             else:
                 model_inputs = init_code
-            unet_output, F1 = model.forward_unet_features(model_inputs, t, encoder_hidden_states=text_emb,
+            unet_output, F1 = model.forward_unet_features(model_inputs, t, encoder_hidden_states=text_embeddings,
                 layer_idx=args.unet_feature_idx, interp_res_h=args.sup_res_h, interp_res_w=args.sup_res_w)
             if args.guidance_scale > 1.:
                 # strategy 1: discard the unconditional branch feature maps

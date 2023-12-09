@@ -293,6 +293,7 @@ class DragPipeline(StableDiffusionPipeline):
 
     @torch.no_grad()
     def get_text_embeddings(self, prompt):
+        DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         # text embeddings
         text_input = self.tokenizer(
             prompt,
@@ -300,7 +301,7 @@ class DragPipeline(StableDiffusionPipeline):
             max_length=77,
             return_tensors="pt"
         )
-        text_embeddings = self.text_encoder(text_input.input_ids.cuda())[0]
+        text_embeddings = self.text_encoder(text_input.input_ids.to(DEVICE))[0]
         return text_embeddings
 
     # get all intermediate features and then do bilinear interpolation
@@ -325,7 +326,7 @@ class DragPipeline(StableDiffusionPipeline):
     def __call__(
         self,
         prompt,
-        prompt_embeds=None, # whether text embedding is directly provided.
+        text_embeddings=None, # whether text embedding is directly provided.
         batch_size=1,
         height=512,
         width=512,
@@ -333,31 +334,19 @@ class DragPipeline(StableDiffusionPipeline):
         num_actual_inference_steps=None,
         guidance_scale=7.5,
         latents=None,
-        unconditioning=None,
         neg_prompt=None,
         return_intermediates=False,
         **kwds):
         DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-        if prompt_embeds is None:
+        if text_embeddings is None:
             if isinstance(prompt, list):
                 batch_size = len(prompt)
             elif isinstance(prompt, str):
                 if batch_size > 1:
                     prompt = [prompt] * batch_size
-
             # text embeddings
-            text_input = self.tokenizer(
-                prompt,
-                padding="max_length",
-                max_length=77,
-                return_tensors="pt"
-            )
-            text_embeddings = self.text_encoder(text_input.input_ids.to(DEVICE))[0]
-        else:
-            batch_size = prompt_embeds.shape[0]
-            text_embeddings = prompt_embeds
-        print("input text embeddings :", text_embeddings.shape)
+            text_embeddings = self.get_text_embeddings(prompt)
 
         # define initial latents if not predefined
         if latents is None:
@@ -370,13 +359,7 @@ class DragPipeline(StableDiffusionPipeline):
                 uc_text = neg_prompt
             else:
                 uc_text = ""
-            unconditional_input = self.tokenizer(
-                [uc_text] * batch_size,
-                padding="max_length",
-                max_length=77,
-                return_tensors="pt"
-            )
-            unconditional_embeddings = self.text_encoder(unconditional_input.input_ids.to(DEVICE))[0]
+            unconditional_embeddings = self.get_text_embeddings([uc_text]*batch_size)
             text_embeddings = torch.cat([unconditional_embeddings, text_embeddings], dim=0)
 
         print("latents shape: ", latents.shape)
@@ -392,9 +375,6 @@ class DragPipeline(StableDiffusionPipeline):
                 model_inputs = torch.cat([latents] * 2)
             else:
                 model_inputs = latents
-            if unconditioning is not None and isinstance(unconditioning, list):
-                _, text_embeddings = text_embeddings.chunk(2)
-                text_embeddings = torch.cat([unconditioning[i].expand(*text_embeddings.shape), text_embeddings]) 
             # predict the noise
             noise_pred = self.unet(model_inputs, t, encoder_hidden_states=text_embeddings)
             if guidance_scale > 1.0:
@@ -417,6 +397,7 @@ class DragPipeline(StableDiffusionPipeline):
         self,
         image: torch.Tensor,
         prompt,
+        text_embeddings=None,
         num_inference_steps=50,
         num_actual_inference_steps=None,
         guidance_scale=7.5,
@@ -428,22 +409,15 @@ class DragPipeline(StableDiffusionPipeline):
         """
         DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         batch_size = image.shape[0]
-        if isinstance(prompt, list):
-            if batch_size == 1:
-                image = image.expand(len(prompt), -1, -1, -1)
-        elif isinstance(prompt, str):
-            if batch_size > 1:
-                prompt = [prompt] * batch_size
+        if text_embeddings is None:
+            if isinstance(prompt, list):
+                if batch_size == 1:
+                    image = image.expand(len(prompt), -1, -1, -1)
+            elif isinstance(prompt, str):
+                if batch_size > 1:
+                    prompt = [prompt] * batch_size
+            text_embeddings = self.get_text_embeddings(prompt)
 
-        # text embeddings
-        text_input = self.tokenizer(
-            prompt,
-            padding="max_length",
-            max_length=77,
-            return_tensors="pt"
-        )
-        text_embeddings = self.text_encoder(text_input.input_ids.to(DEVICE))[0]
-        print("input text embeddings :", text_embeddings.shape)
         # define initial latents
         latents = self.image2latent(image)
 
