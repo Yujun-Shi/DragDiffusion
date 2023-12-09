@@ -273,6 +273,8 @@ def run_drag(source_image,
                                num_inference_steps=args.n_inference_step,
                                num_actual_inference_steps=args.n_actual_inference_step)
 
+    # empty cache to save memory
+    torch.cuda.empty_cache()
 
     init_code = invert_code
     init_code_orig = deepcopy(init_code)
@@ -289,6 +291,9 @@ def run_drag(source_image,
     updated_init_code = updated_init_code.half()
     text_embeddings = text_embeddings.half()
     model.unet = model.unet.half()
+
+    # empty cache to save memory
+    torch.cuda.empty_cache()
 
     # hijack the attention module
     # inject the reference branch to guide the generation
