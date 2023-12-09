@@ -244,6 +244,7 @@ def drag_diffusion_update_gen(model,
                 break
 
             loss = 0.0
+            _, _, max_r, max_c = F0.shape
             for i in range(len(handle_points)):
                 pi, ti = handle_points[i], target_points[i]
                 # skip if the distance between target and source is less than 1
