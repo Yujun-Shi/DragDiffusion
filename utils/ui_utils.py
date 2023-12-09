@@ -163,10 +163,11 @@ def train_lora_interface(original_image,
     return "Training LoRA Done!"
 
 def preprocess_image(image,
-                     device):
+                     device,
+                     dtype=torch.float32):
     image = torch.from_numpy(image).float() / 127.5 - 1 # [-1, 1]
     image = rearrange(image, "h w c -> 1 c h w")
-    image = image.to(device)
+    image = image.to(device, dtype)
     return image
 
 def run_drag(source_image,
@@ -190,7 +191,7 @@ def run_drag(source_image,
     scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
                           beta_schedule="scaled_linear", clip_sample=False,
                           set_alpha_to_one=False, steps_offset=1)
-    model = DragPipeline.from_pretrained(model_path, scheduler=scheduler).to(device)
+    model = DragPipeline.from_pretrained(model_path, scheduler=scheduler, torch_dtype=torch.float16)
     # call this function to override unet forward function,
     # so that intermediate features are returned after forward
     model.modify_unet_forward()
@@ -200,6 +201,9 @@ def run_drag(source_image,
         model.vae = AutoencoderKL.from_pretrained(
             vae_path
         ).to(model.vae.device, model.vae.dtype)
+
+    # off load model to cpu, which save some memory.
+    model.enable_model_cpu_offload()
 
     # initialize parameters
     seed = 42 # random seed used by a lot of people for unknown reason
@@ -227,7 +231,7 @@ def run_drag(source_image,
 
     print(args)
 
-    source_image = preprocess_image(source_image, device)
+    source_image = preprocess_image(source_image, device, dtype=torch.float16)
     image_with_clicks = preprocess_image(image_with_clicks, device)
 
     # set lora
@@ -271,8 +275,14 @@ def run_drag(source_image,
 
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
     # update according to the given supervision
+    init_code = init_code.float()
+    model.unet = model.unet.float()
+    model.text_encoder = model.text_encoder.float()
     updated_init_code = drag_diffusion_update(model, init_code, t,
         handle_points, target_points, mask, args)
+    updated_init_code = updated_init_code.half()
+    model.unet = model.unet.half()
+    model.text_encoder = model.text_encoder.half()
 
     # hijack the attention module
     # inject the reference branch to guide the generation
@@ -301,11 +311,11 @@ def run_drag(source_image,
 
     # save the original image, user editing instructions, synthesized image
     save_result = torch.cat([
-        source_image * 0.5 + 0.5,
+        source_image.float() * 0.5 + 0.5,
         torch.ones((1,3,full_h,25)).cuda(),
-        image_with_clicks * 0.5 + 0.5,
+        image_with_clicks.float() * 0.5 + 0.5,
         torch.ones((1,3,full_h,25)).cuda(),
-        gen_image[0:1]
+        gen_image[0:1].float()
     ], dim=-1)
 
     if not os.path.isdir(save_dir):
@@ -435,7 +445,7 @@ def run_drag_gen(
     save_dir="./results"):
     # initialize model
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model = DragPipeline.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
+    model = DragPipeline.from_pretrained(model_path, torch_dtype=torch.float16)
     if scheduler_name == "DDIM":
         scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012,
                         beta_schedule="scaled_linear", clip_sample=False,
@@ -460,6 +470,9 @@ def run_drag_gen(
         model.vae = AutoencoderKL.from_pretrained(
             vae_path
         ).to(model.vae.device, model.vae.dtype)
+
+    # off load model to cpu, which save some memory.
+    model.enable_model_cpu_offload()
 
     # initialize parameters
     seed = 42 # random seed used by a lot of people for unknown reason
