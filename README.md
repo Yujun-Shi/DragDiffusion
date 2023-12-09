@@ -5,7 +5,11 @@
     &nbsp;&nbsp;
     <strong>Chuhui Xue</strong>
     &nbsp;&nbsp;
+    <strong>Jun Hao Liew</strong>
+    &nbsp;&nbsp;
     <strong>Jiachun Pan</strong>
+    &nbsp;&nbsp;
+    <strong>Hanshu Yan</strong>
     &nbsp;&nbsp;
     <strong>Wenqing Zhang</strong>
     &nbsp;&nbsp;
