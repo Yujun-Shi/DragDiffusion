@@ -558,6 +558,7 @@ def run_drag_gen(
 
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
     # update according to the given supervision
+    torch.cuda.empty_cache()
     init_code = init_code.to(torch.float32)
     text_embeddings = text_embeddings.to(torch.float32)
     model.unet = model.unet.to(torch.float32)
@@ -566,6 +567,7 @@ def run_drag_gen(
     updated_init_code = updated_init_code.to(torch.float16)
     text_embeddings = text_embeddings.to(torch.float16)
     model.unet = model.unet.to(torch.float16)
+    torch.cuda.empty_cache()
 
     # hijack the attention module
     # inject the reference branch to guide the generation
