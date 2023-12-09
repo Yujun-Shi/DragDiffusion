@@ -87,6 +87,8 @@ def drag_diffusion_update(model,
 
     assert len(handle_points) == len(target_points), \
         "number of handle point must equals target points"
+    if text_embeddings is None:
+        text_embeddings = model.get_text_embeddings(args.prompt)
 
     # the init output feature of unet
     with torch.no_grad():
@@ -165,6 +167,8 @@ def drag_diffusion_update_gen(model,
 
     assert len(handle_points) == len(target_points), \
         "number of handle point must equals target points"
+    if text_embeddings is None:
+        text_embeddings = model.get_text_embeddings(args.prompt)
 
     # positive prompt embedding
     if args.guidance_scale > 1.0:

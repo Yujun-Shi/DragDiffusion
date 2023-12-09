@@ -155,8 +155,8 @@ def run_drag(source_image,
 
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
     # update according to the given supervision
-    updated_init_code = drag_diffusion_update(model, init_code, t,
-        handle_points, target_points, mask, args)
+    updated_init_code = drag_diffusion_update(model, init_code,
+        None, t, handle_points, target_points, mask, args)
 
     # hijack the attention module
     # inject the reference branch to guide the generation
