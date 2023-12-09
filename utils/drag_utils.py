@@ -253,8 +253,16 @@ def drag_diffusion_update_gen(model,
                 di = (ti - pi) / (ti - pi).norm()
 
                 # motion supervision
-                f0_patch = F1[:,:,int(pi[0])-args.r_m:int(pi[0])+args.r_m+1, int(pi[1])-args.r_m:int(pi[1])+args.r_m+1].detach()
-                f1_patch = interpolate_feature_patch(F1, pi[0] + di[0], pi[1] + di[1], args.r_m)
+                # with boundary protection
+                r1, r2 = max(0,int(pi[0])-args.r_m), min(max_r,int(pi[0])+args.r_m+1)
+                c1, c2 = max(0,int(pi[1])-args.r_m), min(max_c,int(pi[1])+args.r_m+1)
+                f0_patch = F1[:,:,r1:r2, c1:c2].detach()
+                f1_patch = interpolate_feature_patch(F1,r1+di[0],r2+di[0],c1+di[1],c2+di[1])
+
+                # original code, without boundary protection
+                # f0_patch = F1[:,:,int(pi[0])-args.r_m:int(pi[0])+args.r_m+1, int(pi[1])-args.r_m:int(pi[1])+args.r_m+1].detach()
+                # f1_patch = interpolate_feature_patch(F1, pi[0] + di[0], pi[1] + di[1], args.r_m)
+
                 loss += ((2*args.r_m+1)**2)*F.l1_loss(f0_patch, f1_patch)
 
             # masked region must stay unchanged
