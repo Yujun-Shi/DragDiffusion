@@ -149,6 +149,7 @@ with gr.Blocks() as demo:
                         "gsdf/Counterfeit-V2.5",
                         "emilianJR/majicMIX_realistic",
                         "SG161222/Realistic_Vision_V2.0",
+                        "stablediffusionapi/anything-v5",
                         "stablediffusionapi/interiordesignsuperm",
                         "stablediffusionapi/dvarch",
                     ] + local_models_choice
