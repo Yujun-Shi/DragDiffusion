@@ -45,15 +45,15 @@ from .freeu_utils import register_free_upblock2d, register_free_crossattn_upbloc
 
 # -------------- general UI functionality --------------
 def clear_all(length=480):
-    return gr.Image.update(value=None, height=length, width=length), \
-        gr.Image.update(value=None, height=length, width=length), \
-        gr.Image.update(value=None, height=length, width=length), \
+    return gr.Image.update(value=None, height=length, width=length, interactive=True), \
+        gr.Image.update(value=None, height=length, width=length, interactive=False), \
+        gr.Image.update(value=None, height=length, width=length, interactive=False), \
         [], None, None
 
 def clear_all_gen(length=480):
-    return gr.Image.update(value=None, height=length, width=length), \
-        gr.Image.update(value=None, height=length, width=length), \
-        gr.Image.update(value=None, height=length, width=length), \
+    return gr.Image.update(value=None, height=length, width=length, interactive=False), \
+        gr.Image.update(value=None, height=length, width=length, interactive=False), \
+        gr.Image.update(value=None, height=length, width=length, interactive=False), \
         [], None, None, None
 
 def mask_image(image,
@@ -88,7 +88,7 @@ def store_img(img, length=512):
     else:
         masked_img = image.copy()
     # when new image is uploaded, `selected_points` should be empty
-    return image, [], masked_img, mask
+    return image, [], gr.Image.update(value=masked_img, interactive=True), mask
 
 # once user upload an image, the original image is stored in `original_image`
 # the same image is displayed in `input_image` for point clicking purpose
@@ -418,14 +418,14 @@ def gen_img(
 
     if height < width:
         # need to do this due to Gradio's bug
-        return gr.Image.update(value=gen_image, height=int(length*height/width), width=length), \
-            gr.Image.update(height=int(length*height/width), width=length), \
+        return gr.Image.update(value=gen_image, height=int(length*height/width), width=length, interactive=True), \
+            gr.Image.update(height=int(length*height/width), width=length, interactive=True), \
             gr.Image.update(height=int(length*height/width), width=length), \
             None, \
             intermediate_latents
     else:
-        return gr.Image.update(value=gen_image, height=length, width=length), \
-            gr.Image.update(value=None, height=length, width=length), \
+        return gr.Image.update(value=gen_image, height=length, width=length, interactive=True), \
+            gr.Image.update(value=None, height=length, width=length, interactive=True), \
             gr.Image.update(value=None, height=length, width=length), \
             None, \
             intermediate_latents

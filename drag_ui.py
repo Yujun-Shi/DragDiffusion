@@ -46,12 +46,12 @@ with gr.Blocks() as demo:
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 20px">Click Points</p>""")
                 input_image = gr.Image(type="numpy", label="Click Points",
-                    show_label=True, height=LENGTH, width=LENGTH) # for points clicking
+                    show_label=True, height=LENGTH, width=LENGTH, interactive=False) # for points clicking
                 undo_button = gr.Button("Undo point")
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 20px">Editing Results</p>""")
                 output_image = gr.Image(type="numpy", label="Editing Results",
-                    show_label=True, height=LENGTH, width=LENGTH)
+                    show_label=True, height=LENGTH, width=LENGTH, interactive=False)
                 with gr.Row():
                     run_button = gr.Button("Run")
                     clear_all_button = gr.Button("Clear All")
@@ -117,17 +117,17 @@ with gr.Blocks() as demo:
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 20px">Draw Mask</p>""")
                 canvas_gen = gr.Image(type="numpy", tool="sketch", label="Draw Mask",
-                    show_label=True, height=LENGTH, width=LENGTH) # for mask painting
+                    show_label=True, height=LENGTH, width=LENGTH, interactive=False) # for mask painting
                 gen_img_button = gr.Button("Generate Image")
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 20px">Click Points</p>""")
                 input_image_gen = gr.Image(type="numpy", label="Click Points",
-                    show_label=True, height=LENGTH, width=LENGTH) # for points clicking
+                    show_label=True, height=LENGTH, width=LENGTH, interactive=False) # for points clicking
                 undo_button_gen = gr.Button("Undo point")
             with gr.Column():
                 gr.Markdown("""<p style="text-align: center; font-size: 20px">Editing Results</p>""")
                 output_image_gen = gr.Image(type="numpy", label="Editing Results",
-                    show_label=True, height=LENGTH, width=LENGTH)
+                    show_label=True, height=LENGTH, width=LENGTH, interactive=False)
                 with gr.Row():
                     run_button_gen = gr.Button("Run")
                     clear_all_button_gen = gr.Button("Clear All")
@@ -181,25 +181,25 @@ with gr.Blocks() as demo:
                                 minimum=1,
                                 maximum=1.6,
                                 step=0.05,
-                                value=1.1)
+                                value=1.0)
                 b2_gen = gr.Slider(label='b2',
                                 info='2nd stage backbone factor',
                                 minimum=1,
                                 maximum=1.6,
                                 step=0.05,
-                                value=1.1)
+                                value=1.0)
                 s1_gen = gr.Slider(label='s1',
                                 info='1st stage skip factor',
                                 minimum=0,
                                 maximum=1,
                                 step=0.05,
-                                value=0.8)
+                                value=1.0)
                 s2_gen = gr.Slider(label='s2',
                                 info='2nd stage skip factor',
                                 minimum=0,
                                 maximum=1,
                                 step=0.05,
-                                value=0.8)
+                                value=1.0)
 
         with gr.Tab(label="Drag Config"):
             with gr.Row():
