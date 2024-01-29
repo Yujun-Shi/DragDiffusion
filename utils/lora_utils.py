@@ -30,17 +30,16 @@ from diffusers.loaders import AttnProcsLayers, LoraLoaderMixin
 from diffusers.models.attention_processor import (
     AttnAddedKVProcessor,
     AttnAddedKVProcessor2_0,
-    LoRAAttnAddedKVProcessor,
-    LoRAAttnProcessor,
-    LoRAAttnProcessor2_0,
     SlicedAttnAddedKVProcessor,
 )
+from diffusers.models.lora import LoRALinearLayer
 from diffusers.optimization import get_scheduler
-from diffusers.utils import check_min_version
+from diffusers.training_utils import unet_lora_state_dict
+from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
-check_min_version("0.17.0")
+check_min_version("0.24.0")
 
 
 def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: str, revision: str):
@@ -146,6 +145,13 @@ def train_lora(image,
     unet = UNet2DConditionModel.from_pretrained(
         model_path, subfolder="unet", revision=None
     )
+    pipeline = StableDiffusionPipeline.from_pretrained(
+                    pretrained_model_name_or_path=model_path,
+                    vae=vae,
+                    unet=unet,
+                    text_encoder=text_encoder,
+                    scheduler=noise_scheduler,
+                    torch_dtype=torch.float16)
 
     # set device and dtype
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -158,36 +164,71 @@ def train_lora(image,
     vae.to(device, dtype=torch.float16)
     text_encoder.to(device, dtype=torch.float16)
 
-    # initialize UNet LoRA
-    unet_lora_attn_procs = {}
-    for name, attn_processor in unet.attn_processors.items():
-        cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-        if name.startswith("mid_block"):
-            hidden_size = unet.config.block_out_channels[-1]
-        elif name.startswith("up_blocks"):
-            block_id = int(name[len("up_blocks.")])
-            hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-        elif name.startswith("down_blocks"):
-            block_id = int(name[len("down_blocks.")])
-            hidden_size = unet.config.block_out_channels[block_id]
-        else:
-            raise NotImplementedError("name must start with up_blocks, mid_blocks, or down_blocks")
+    # Set correct lora layers
+    unet_lora_parameters = []
+    for attn_processor_name, attn_processor in unet.attn_processors.items():
+        # Parse the attention module.
+        attn_module = unet
+        for n in attn_processor_name.split(".")[:-1]:
+            attn_module = getattr(attn_module, n)
 
-        if isinstance(attn_processor, (AttnAddedKVProcessor, SlicedAttnAddedKVProcessor, AttnAddedKVProcessor2_0)):
-            lora_attn_processor_class = LoRAAttnAddedKVProcessor
-        else:
-            lora_attn_processor_class = (
-                LoRAAttnProcessor2_0 if hasattr(F, "scaled_dot_product_attention") else LoRAAttnProcessor
+        # Set the `lora_layer` attribute of the attention-related matrices.
+        attn_module.to_q.set_lora_layer(
+            LoRALinearLayer(
+                in_features=attn_module.to_q.in_features,
+                out_features=attn_module.to_q.out_features,
+                rank=lora_rank
             )
-        unet_lora_attn_procs[name] = lora_attn_processor_class(
-            hidden_size=hidden_size, cross_attention_dim=cross_attention_dim, rank=lora_rank
+        )
+        attn_module.to_k.set_lora_layer(
+            LoRALinearLayer(
+                in_features=attn_module.to_k.in_features,
+                out_features=attn_module.to_k.out_features,
+                rank=lora_rank
+            )
+        )
+        attn_module.to_v.set_lora_layer(
+            LoRALinearLayer(
+                in_features=attn_module.to_v.in_features,
+                out_features=attn_module.to_v.out_features,
+                rank=lora_rank
+            )
+        )
+        attn_module.to_out[0].set_lora_layer(
+            LoRALinearLayer(
+                in_features=attn_module.to_out[0].in_features,
+                out_features=attn_module.to_out[0].out_features,
+                rank=lora_rank,
+            )
         )
 
-    unet.set_attn_processor(unet_lora_attn_procs)
-    unet_lora_layers = AttnProcsLayers(unet.attn_processors)
+        # Accumulate the LoRA params to optimize.
+        unet_lora_parameters.extend(attn_module.to_q.lora_layer.parameters())
+        unet_lora_parameters.extend(attn_module.to_k.lora_layer.parameters())
+        unet_lora_parameters.extend(attn_module.to_v.lora_layer.parameters())
+        unet_lora_parameters.extend(attn_module.to_out[0].lora_layer.parameters())
+
+        if isinstance(attn_processor, (AttnAddedKVProcessor, SlicedAttnAddedKVProcessor, AttnAddedKVProcessor2_0)):
+            attn_module.add_k_proj.set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.add_k_proj.in_features,
+                    out_features=attn_module.add_k_proj.out_features,
+                    rank=args.rank,
+                )
+            )
+            attn_module.add_v_proj.set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.add_v_proj.in_features,
+                    out_features=attn_module.add_v_proj.out_features,
+                    rank=args.rank,
+                )
+            )
+            unet_lora_parameters.extend(attn_module.add_k_proj.lora_layer.parameters())
+            unet_lora_parameters.extend(attn_module.add_v_proj.lora_layer.parameters())
+
 
     # Optimizer creation
-    params_to_optimize = (unet_lora_layers.parameters())
+    params_to_optimize = (unet_lora_parameters)
     optimizer = torch.optim.AdamW(
         params_to_optimize,
         lr=lora_lr,
@@ -206,9 +247,11 @@ def train_lora(image,
     )
 
     # prepare accelerator
-    unet_lora_layers = accelerator.prepare_model(unet_lora_layers)
-    optimizer = accelerator.prepare_optimizer(optimizer)
-    lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
+    # unet_lora_layers = accelerator.prepare_model(unet_lora_layers)
+    # optimizer = accelerator.prepare_optimizer(optimizer)
+    # lr_scheduler = accelerator.prepare_scheduler(lr_scheduler)
+
+    unet,optimizer,lr_scheduler = accelerator.prepare(unet,optimizer,lr_scheduler)
 
     # initialize text embeddings
     with torch.no_grad():
@@ -221,11 +264,15 @@ def train_lora(image,
         )
         text_embedding = text_embedding.repeat(lora_batch_size, 1, 1)
 
-    # initialize latent distribution
-    image_transforms = transforms.Compose(
+    # initialize image transforms
+    image_transforms_pil = transforms.Compose(
         [
             transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.RandomCrop(512),
+        ]
+    )
+    image_transforms_tensor = transforms.Compose(
+        [
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
         ]
@@ -234,8 +281,14 @@ def train_lora(image,
     for step in progress.tqdm(range(lora_step), desc="training LoRA"):
         unet.train()
         image_batch = []
+        image_pil_batch = []
         for _ in range(lora_batch_size):
-            image_transformed = image_transforms(Image.fromarray(image)).to(device, dtype=torch.float16)
+            # first store pil image
+            image_transformed = image_transforms_pil(Image.fromarray(image))
+            image_pil_batch.append(image_transformed)            
+
+            # then store tensor image
+            image_transformed = image_transforms_tensor(image_transformed).to(device, dtype=torch.float16)
             image_transformed = image_transformed.unsqueeze(dim=0)
             image_batch.append(image_transformed)
 
@@ -258,7 +311,9 @@ def train_lora(image,
         noisy_model_input = noise_scheduler.add_noise(model_input, noise, timesteps)
 
         # Predict the noise residual
-        model_pred = unet(noisy_model_input, timesteps, text_embedding).sample
+        model_pred = unet(noisy_model_input,
+                          timesteps,
+                          text_embedding).sample
 
         # Get the target for loss depending on the prediction type
         if noise_scheduler.config.prediction_type == "epsilon":
@@ -282,6 +337,7 @@ def train_lora(image,
             # unwrap_model is used to remove all special modules added when doing distributed training
             # so here, there is no need to call unwrap_model
             # unet_lora_layers = accelerator.unwrap_model(unet_lora_layers)
+            unet_lora_layers = unet_lora_state_dict(unet)
             LoraLoaderMixin.save_lora_weights(
                 save_directory=save_lora_path_intermediate,
                 unet_lora_layers=unet_lora_layers,
@@ -294,6 +350,7 @@ def train_lora(image,
     # unwrap_model is used to remove all special modules added when doing distributed training
     # so here, there is no need to call unwrap_model
     # unet_lora_layers = accelerator.unwrap_model(unet_lora_layers)
+    unet_lora_layers = unet_lora_state_dict(unet)
     LoraLoaderMixin.save_lora_weights(
         save_directory=save_lora_path,
         unet_lora_layers=unet_lora_layers,

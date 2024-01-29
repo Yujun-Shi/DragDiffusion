@@ -2,6 +2,7 @@ name: dragdiff
 channels:
   - pytorch
   - defaults
+  - nvidia
 dependencies:
   - python=3.8.5
   - pip=22.3.1
@@ -31,11 +32,11 @@ dependencies:
       - addict==2.4.0
       - yapf==0.32.0
       - prettytable==3.6.0
-      - safetensors==0.2.7
+      - safetensors==0.3.1
       - basicsr==1.4.2
       - accelerate==0.17.0
       - decord==0.6.0
-      - diffusers==0.17.1
+      - diffusers==0.24.0
       - moviepy==1.0.3
       - opencv_python==4.7.0.68
       - Pillow==9.4.0

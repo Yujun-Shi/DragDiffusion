@@ -36,9 +36,10 @@
 </p>
 
 ## Disclaimer
-This is a research project, NOT a commercial product.
+This is a research project, NOT a commercial product. Users are granted the freedom to create images using this tool, but they are expected to comply with local laws and utilize it in a responsible manner. The developers do not assume any responsibility for potential misuse by users.
 
 ## News and Update
+* [Jan 29th] Update to support diffusers==0.24.0!
 * [Oct 23rd] Code and data of DragBench are released! Please check README under "drag_bench_evaluation" for details.
 * [Oct 16th] Integrate [FreeU](https://chenyangsi.top/FreeU/) when dragging generated image.
 * [Oct 3rd] Speeding up LoRA training when editing real images. (**Now only around 20s on A100!**)

@@ -32,6 +32,7 @@ import torch
 import torch.nn.functional as F
 
 from diffusers import DDIMScheduler, AutoencoderKL, DPMSolverMultistepScheduler
+from diffusers.models.embeddings import ImageProjection
 from drag_pipeline import DragPipeline
 
 from torchvision.utils import save_image
@@ -268,7 +269,7 @@ def run_drag(source_image,
     # the latent code resolution is too small, only 64*64
     invert_code = model.invert(source_image,
                                prompt,
-                               text_embeddings=text_embeddings,
+                               encoder_hidden_states=text_embeddings,
                                guidance_scale=args.guidance_scale,
                                num_inference_steps=args.n_inference_step,
                                num_actual_inference_steps=args.n_actual_inference_step)
@@ -282,12 +283,21 @@ def run_drag(source_image,
     t = model.scheduler.timesteps[args.n_inference_step - args.n_actual_inference_step]
 
     # feature shape: [1280,16,16], [1280,32,32], [640,64,64], [320,64,64]
-    # update according to the given supervision
+    # convert dtype to float for optimization
     init_code = init_code.float()
     text_embeddings = text_embeddings.float()
     model.unet = model.unet.float()
-    updated_init_code = drag_diffusion_update(model, init_code,
-        text_embeddings, t, handle_points, target_points, mask, args)
+
+    updated_init_code = drag_diffusion_update(
+        model,
+        init_code,
+        text_embeddings,
+        t,
+        handle_points,
+        target_points,
+        mask,
+        args)
+
     updated_init_code = updated_init_code.half()
     text_embeddings = text_embeddings.half()
     model.unet = model.unet.half()
@@ -309,7 +319,7 @@ def run_drag(source_image,
     # inference the synthesized image
     gen_image = model(
         prompt=args.prompt,
-        text_embeddings=torch.cat([text_embeddings, text_embeddings], dim=0),
+        encoder_hidden_states=torch.cat([text_embeddings]*2, dim=0),
         batch_size=2,
         latents=torch.cat([init_code_orig, updated_init_code], dim=0),
         guidance_scale=args.guidance_scale,

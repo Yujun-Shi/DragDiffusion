@@ -136,7 +136,7 @@ def override_attn_proc_forward(attn, editor, place_in_unet):
 # forward function for lora attention processor
 # modified from __call__ function of LoRAAttnProcessor2_0 in diffusers v0.17.1
 def override_lora_attn_proc_forward(attn, editor, place_in_unet):
-    def forward(hidden_states, encoder_hidden_states=None, attention_mask=None, lora_scale=1.0):
+    def forward(hidden_states, encoder_hidden_states=None, attention_mask=None):
         residual = hidden_states
         input_ndim = hidden_states.ndim
         is_cross = encoder_hidden_states is not None
@@ -158,15 +158,17 @@ def override_lora_attn_proc_forward(attn, editor, place_in_unet):
         if attn.group_norm is not None:
             hidden_states = attn.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
-        query = attn.to_q(hidden_states) + lora_scale * attn.processor.to_q_lora(hidden_states)
+        # query = attn.to_q(hidden_states) + lora_scale * attn.to_q.lora_layer(hidden_states)
+        query = attn.to_q(hidden_states)
 
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states) + lora_scale * attn.processor.to_k_lora(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states) + lora_scale * attn.processor.to_v_lora(encoder_hidden_states)
+        # key = attn.to_k(encoder_hidden_states) + lora_scale * attn.to_k.lora_layer(encoder_hidden_states)
+        # value = attn.to_v(encoder_hidden_states) + lora_scale * attn.to_v.lora_layer(encoder_hidden_states)
+        key, value = attn.to_k(encoder_hidden_states), attn.to_v(encoder_hidden_states)
 
         query, key, value = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=attn.heads), (query, key, value))
 
@@ -176,7 +178,8 @@ def override_lora_attn_proc_forward(attn, editor, place_in_unet):
             attn.heads, scale=attn.scale)
 
         # linear proj
-        hidden_states = attn.to_out[0](hidden_states) + lora_scale * attn.processor.to_out_lora(hidden_states)
+        # hidden_states = attn.to_out[0](hidden_states) + lora_scale * attn.to_out[0].lora_layer(hidden_states)
+        hidden_states = attn.to_out[0](hidden_states)
         # dropout
         hidden_states = attn.to_out[1](hidden_states)
 
