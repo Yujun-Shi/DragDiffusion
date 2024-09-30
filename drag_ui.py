@@ -61,6 +61,7 @@ with gr.Blocks() as demo:
             prompt = gr.Textbox(label="Prompt")
             lora_path = gr.Textbox(value="./lora_tmp", label="LoRA path")
             lora_status_bar = gr.Textbox(label="display LoRA training status")
+            results_path = gr.Textbox(value="./results", label="Folder for results")
 
         # algorithm specific parameters
         with gr.Tab("Drag Config"):
@@ -79,6 +80,11 @@ with gr.Blocks() as demo:
                 latent_lr = gr.Number(value=0.01, label="latent lr")
                 start_step = gr.Number(value=0, label="start_step", precision=0, visible=False)
                 start_layer = gr.Number(value=10, label="start_layer", precision=0, visible=False)
+                save_optimization_seq_rgb = gr.Checkbox(
+                    value=False, 
+                    label="Save Opt Seq",
+                    info="Each step of optimization latent is saved in png file. Will take more time."
+                )
 
         with gr.Tab("Base Model Config"):
             with gr.Row():
@@ -136,6 +142,7 @@ with gr.Blocks() as demo:
         with gr.Row():
             pos_prompt_gen = gr.Textbox(label="Positive Prompt")
             neg_prompt_gen = gr.Textbox(label="Negative Prompt")
+            results_path_gen = gr.Textbox(value="./results", label="Folder for results")
 
         with gr.Tab("Generation Config"):
             with gr.Row():
@@ -218,6 +225,11 @@ with gr.Blocks() as demo:
                 latent_lr_gen = gr.Number(value=0.01, label="latent lr")
                 start_step_gen = gr.Number(value=0, label="start_step", precision=0, visible=False)
                 start_layer_gen = gr.Number(value=10, label="start_layer", precision=0, visible=False)
+                save_optimization_seq_rgb_gen = gr.Checkbox(
+                    value=False, 
+                    label="Save Opt Seq",
+                    info="Each step of optimization latent is saved in png file. Will take more time."
+                )
 
     # event definition
     # event for dragging user-input real image
@@ -265,6 +277,8 @@ with gr.Blocks() as demo:
         lora_path,
         start_step,
         start_layer,
+        results_path,
+        save_optimization_seq_rgb,
         ],
         [output_image]
     )
@@ -343,6 +357,8 @@ with gr.Blocks() as demo:
         b2_gen,
         s1_gen,
         s2_gen,
+        results_path_gen,
+        save_optimization_seq_rgb_gen,
         ],
         [output_image_gen]
     )

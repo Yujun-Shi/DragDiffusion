@@ -101,6 +101,7 @@ def drag_diffusion_update(model,
     # prepare optimizable init_code and optimizer
     init_code.requires_grad_(True)
     optimizer = torch.optim.Adam([init_code], lr=args.lr)
+    opt_seq = [init_code.detach().clone()]
 
     # prepare for point tracking and background regularization
     handle_points_init = copy.deepcopy(handle_points)
@@ -157,8 +158,9 @@ def drag_diffusion_update(model,
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad()
+        opt_seq.append(init_code.detach().clone())
 
-    return init_code
+    return init_code, opt_seq
 
 def drag_diffusion_update_gen(model,
                               init_code,
@@ -218,6 +220,7 @@ def drag_diffusion_update_gen(model,
 
     # prepare amp scaler for mixed-precision training
     scaler = torch.cuda.amp.GradScaler()
+    opt_seq = [init_code.detach().clone()]
     for step_idx in range(args.n_pix_step):
         with torch.autocast(device_type='cuda', dtype=torch.float16):
             if args.guidance_scale > 1.:
@@ -281,6 +284,7 @@ def drag_diffusion_update_gen(model,
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad()
+        opt_seq.append(init_code.detach().clone())
 
-    return init_code
+    return init_code, opt_seq
 

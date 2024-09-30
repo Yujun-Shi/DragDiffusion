@@ -185,7 +185,8 @@ def run_drag(source_image,
              lora_path,
              start_step,
              start_layer,
-             save_dir="./results"
+             save_dir="./results",
+             save_seq=True,
     ):
     # initialize model
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -288,7 +289,7 @@ def run_drag(source_image,
     text_embeddings = text_embeddings.float()
     model.unet = model.unet.float()
 
-    updated_init_code = drag_diffusion_update(
+    updated_init_code, opt_seq = drag_diffusion_update(
         model,
         init_code,
         text_embeddings,
@@ -344,6 +345,27 @@ def run_drag(source_image,
         os.mkdir(save_dir)
     save_prefix = datetime.datetime.now().strftime("%Y-%m-%d-%H%M-%S")
     save_image(save_result, os.path.join(save_dir, save_prefix + '.png'))
+
+    if save_seq:
+        os.mkdir(os.path.join(save_dir, save_prefix))
+        # save list of latents in pt file
+        torch.save(opt_seq, os.path.join(save_dir, save_prefix, 'opt_seq.pt'))
+        for i in range(0, len(opt_seq), 2):
+            # denoise latents and save
+            latents = torch.cat([opt_seq[i].half(), opt_seq[i+1].half() if i+1 < len(opt_seq) else opt_seq[i].half()], dim=0)
+            gen_image_seq = model(
+                args.prompt,
+                encoder_hidden_states=torch.cat([text_embeddings]*2, dim=0),
+                batch_size=2,
+                latents=latents,
+                guidance_scale=args.guidance_scale,
+                num_inference_steps=args.n_inference_step,
+                num_actual_inference_steps=args.n_actual_inference_step
+            )
+            gen_image_seq = F.interpolate(gen_image_seq, (full_h, full_w), mode='bilinear')
+            save_image(gen_image_seq[0].unsqueeze(dim=0), os.path.join(save_dir, save_prefix, f'iter_{i}.png'))
+            if i+1 < len(opt_seq):
+                save_image(gen_image_seq[1].unsqueeze(dim=0), os.path.join(save_dir, save_prefix, f'iter_{i+1}.png'))
 
     out_image = gen_image.cpu().permute(0, 2, 3, 1).numpy()[0]
     out_image = (out_image * 255).astype(np.uint8)
@@ -464,7 +486,9 @@ def run_drag_gen(
     b2,
     s1,
     s2,
-    save_dir="./results"):
+    save_dir="./results",
+    save_seq=True,
+    ):
     # initialize model
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = DragPipeline.from_pretrained(model_path, torch_dtype=torch.float16)
@@ -572,7 +596,7 @@ def run_drag_gen(
     init_code = init_code.to(torch.float32)
     text_embeddings = text_embeddings.to(torch.float32)
     model.unet = model.unet.to(torch.float32)
-    updated_init_code = drag_diffusion_update_gen(model, init_code,
+    updated_init_code, opt_seq = drag_diffusion_update_gen(model, init_code,
         text_embeddings, t, handle_points, target_points, mask, args)
     updated_init_code = updated_init_code.to(torch.float16)
     text_embeddings = text_embeddings.to(torch.float16)
@@ -618,6 +642,27 @@ def run_drag_gen(
         os.mkdir(save_dir)
     save_prefix = datetime.datetime.now().strftime("%Y-%m-%d-%H%M-%S")
     save_image(save_result, os.path.join(save_dir, save_prefix + '.png'))
+
+    if save_seq:
+        os.mkdir(os.path.join(save_dir, save_prefix))
+        # save list of latents in pt file
+        torch.save(opt_seq, os.path.join(save_dir, save_prefix, 'opt_seq.pt'))
+        for i in range(0, len(opt_seq), 2):
+            # denoise latents and save
+            latents = torch.cat([opt_seq[i].half(), opt_seq[i+1].half() if i+1 < len(opt_seq) else opt_seq[i].half()], dim=0)
+            gen_image_seq = model(
+                args.prompt,
+                encoder_hidden_states=torch.cat([text_embeddings]*2, dim=0),
+                batch_size=2,
+                latents=latents,
+                guidance_scale=args.guidance_scale,
+                num_inference_steps=args.n_inference_step,
+                num_actual_inference_steps=args.n_actual_inference_step
+            )
+            gen_image_seq = F.interpolate(gen_image_seq, (full_h, full_w), mode='bilinear')
+            save_image(gen_image_seq[0].unsqueeze(dim=0), os.path.join(save_dir, save_prefix, f'iter_{i}.png'))
+            if i+1 < len(opt_seq):
+                save_image(gen_image_seq[1].unsqueeze(dim=0), os.path.join(save_dir, save_prefix, f'iter_{i+1}.png'))
 
     out_image = gen_image.cpu().permute(0, 2, 3, 1).numpy()[0]
     out_image = (out_image * 255).astype(np.uint8)
